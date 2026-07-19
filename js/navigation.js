@@ -1,7 +1,12 @@
+"use strict";
+
+
 /********************************/
-/********** NAVIGATION **********/
+/*********** VARIABLES **********/
 /********************************/
 
+
+let navigationStarted = false;
 
 let navigationDistance = 0;
 
@@ -13,7 +18,7 @@ let navigationRemainingTime = 0;
 
 let navigationArrivalTime = "--";
 
-let navigationTravelCost = "--";
+let navigationRefreshTime = 3000;
 
 
 
@@ -27,7 +32,7 @@ function initializeNavigation(){
 
     console.log(
 
-        "Module navigation chargé."
+        "Navigation chargée."
 
     );
 
@@ -39,25 +44,61 @@ function initializeNavigation(){
 
 
 /********************************/
-/******** DEMARRAGE NAV *********/
+/******** ÉTAT NAVIGATION *******/
 /********************************/
 
 
-function startNavigation(){
+function isNavigationStarted(){
 
 
-    if(!destinationMarker){
+    return navigationStarted;
 
+
+}
+
+
+
+
+
+/********************************/
+/******** DÉMARRER GPS **********/
+/********************************/
+
+
+async function startNavigation(){
+
+
+    if(
+
+        !destinationMarker
+
+    ){
 
         showNotification(
 
-            "Aucune destination sélectionnée."
+            "Aucune destination."
 
         );
 
-
         return;
 
+    }
+
+
+
+    if(
+
+        !hasGPSPosition()
+
+    ){
+
+        showNotification(
+
+            "GPS indisponible."
+
+        );
+
+        return;
 
     }
 
@@ -67,19 +108,15 @@ function startNavigation(){
 
 
 
-    closeSearchBar();
-
-
-
-    hideGPSButtons();
-
-
-
-    calculateRoute();
+    enableNavigationMapMode();
 
 
 
     showNavigationInformations();
+
+
+
+    await calculateRoute();
 
 
 
@@ -97,7 +134,7 @@ function startNavigation(){
 
 
 /********************************/
-/******** ARRET NAVIGATION ******/
+/******** ARRÊTER GPS ***********/
 /********************************/
 
 
@@ -108,15 +145,15 @@ function stopNavigation(){
 
 
 
-    showGPSButtons();
-
-
-
-    openSearchBar();
+    disableNavigationMapMode();
 
 
 
     hideNavigationInformations();
+
+
+
+    clearCurrentRoute();
 
 
 
@@ -134,6 +171,35 @@ function stopNavigation(){
 
 
 /********************************/
+/******** DESTINATION ***********/
+/********************************/
+
+
+function destinationReached(){
+
+
+    showNotification(
+
+        "Vous êtes arrivé."
+
+    );
+
+
+
+    speakNavigation(
+
+        "Vous êtes arrivé à destination."
+
+    );
+
+
+
+    stopNavigation();
+
+
+}
+
+/********************************/
 /******** CALCUL TRAJET *********/
 /********************************/
 
@@ -143,145 +209,50 @@ async function calculateRoute(){
 
     if(
 
-        currentPosition.latitude === 0 ||
-
-        currentPosition.longitude === 0
+        !destinationMarker
 
     ){
 
-        showNotification(
-
-            "Position GPS inconnue."
-
-        );
-
         return;
 
     }
-
-
-
-    if(!destinationMarker){
-
-        return;
-
-    }
-
-
-
-    showNotification(
-
-        "Calcul de l'itinéraire..."
-
-    );
-
-
-
-    /*
-    La prochaine partie utilisera :
-
-    - OSRM
-    - OpenStreetMap
-    - coordonnées GPS
-    */
-
-
-
-}
-
-/********************************/
-/*********** API OSRM ***********/
-/********************************/
-
-
-async function calculateRoute(){
-
-
-    if(
-
-        currentPosition.latitude === 0 ||
-
-        currentPosition.longitude === 0
-
-    ){
-
-        showNotification(
-
-            "Position GPS inconnue."
-
-        );
-
-        return;
-
-    }
-
-
-
-    if(!destinationMarker){
-
-        return;
-
-    }
-
-
-
-    showNotification(
-
-        "Calcul de l'itinéraire..."
-
-    );
 
 
 
     try{
 
 
-        let destination =
+        const destination =
 
         destinationMarker.getLatLng();
 
 
 
-        let url =
+        const url =
 
         "https://router.project-osrm.org/route/v1/driving/"
 
         +
 
-        currentPosition.longitude
+        currentPosition.longitude +
 
-        +
+        "," +
 
-        ","
+        currentPosition.latitude +
 
-        +
+        ";" +
 
-        currentPosition.latitude
+        destination.lng +
 
-        +
+        "," +
 
-        ";"
+        destination.lat +
 
-        +
-
-        destination.lng
-
-        +
-
-        ","
-
-        +
-
-        destination.lat
-
-        +
-
-        "?overview=false";
+        "?overview=full&geometries=geojson";
 
 
 
-
-        let response =
+        const response =
 
         await fetch(
 
@@ -291,7 +262,7 @@ async function calculateRoute(){
 
 
 
-        let data =
+        const data =
 
         await response.json();
 
@@ -301,23 +272,25 @@ async function calculateRoute(){
 
             !data.routes ||
 
-            data.routes.length === 0
+            !data.routes.length
 
         ){
 
-
             showNotification(
 
-                "Impossible de calculer l'itinéraire."
+                "Itinéraire introuvable."
 
             );
 
-
             return;
-
 
         }
 
+
+
+        const route =
+
+        data.routes[0];
 
 
 
@@ -325,9 +298,7 @@ async function calculateRoute(){
 
         Math.round(
 
-            data.routes[0].distance
-
-            / 1000
+            route.distance / 1000
 
         );
 
@@ -337,9 +308,7 @@ async function calculateRoute(){
 
         Math.round(
 
-            data.routes[0].duration
-
-            / 60
+            route.duration / 60
 
         );
 
@@ -357,24 +326,19 @@ async function calculateRoute(){
 
 
 
-
         calculateArrivalTime();
 
 
 
-        calculateTravelCost();
+        displayRoute(
+
+            route.geometry
+
+        );
 
 
 
         updateNavigationInformations();
-
-
-
-        showNotification(
-
-            "Itinéraire calculé."
-
-        );
 
 
     }
@@ -383,7 +347,7 @@ async function calculateRoute(){
     catch(error){
 
 
-        console.log(
+        console.error(
 
             error
 
@@ -393,7 +357,7 @@ async function calculateRoute(){
 
         showNotification(
 
-            "Erreur lors du calcul."
+            "Erreur GPS."
 
         );
 
@@ -408,14 +372,226 @@ async function calculateRoute(){
 
 
 /********************************/
-/******** TEMPS D'ARRIVEE *******/
+/********** TRACÉ BLEU **********/
+/********************************/
+
+
+let currentRoute = null;
+
+
+
+function displayRoute(
+
+    geometry
+
+){
+
+
+    if(
+
+        !map ||
+
+        !geometry
+
+    ){
+
+        return;
+
+    }
+
+
+
+    clearCurrentRoute();
+
+
+
+    currentRoute =
+
+    L.geoJSON(
+
+        geometry,
+
+        {
+
+            style:{
+
+                weight:6,
+
+                opacity:1
+
+            }
+
+        }
+
+    )
+
+    .addTo(
+
+        map
+
+    );
+
+
+
+    map.fitBounds(
+
+        currentRoute.getBounds()
+
+    );
+
+
+}
+
+
+
+
+
+/********************************/
+/******** SUPPRIMER TRAJET ******/
+/********************************/
+
+
+function clearCurrentRoute(){
+
+
+    if(
+
+        currentRoute
+
+    ){
+
+
+        map.removeLayer(
+
+            currentRoute
+
+        );
+
+
+
+        currentRoute =
+
+        null;
+
+
+    }
+
+
+}
+
+/********************************/
+/******** DISTANCE RESTANTE *****/
+/********************************/
+
+
+function updateRemainingDistance(){
+
+
+    if(
+
+        !destinationMarker
+
+    ){
+
+        return;
+
+    }
+
+
+
+    const destination =
+
+    destinationMarker.getLatLng();
+
+
+
+    navigationRemainingDistance =
+
+    Math.round(
+
+        calculateDistance(
+
+            currentPosition.latitude,
+
+            currentPosition.longitude,
+
+            destination.lat,
+
+            destination.lng
+
+        )
+
+    );
+
+
+
+    if(
+
+        navigationRemainingDistance <= 1
+
+    ){
+
+        navigationRemainingDistance =
+
+        0;
+
+
+        destinationReached();
+
+
+    }
+
+
+}
+
+
+
+
+
+/********************************/
+/******** TEMPS RESTANT *********/
+/********************************/
+
+
+function updateRemainingTime(){
+
+
+    navigationRemainingTime =
+
+    Math.max(
+
+        0,
+
+        Math.round(
+
+            (
+
+                navigationRemainingDistance
+
+                / 80
+
+            ) * 60
+
+        )
+
+    );
+
+
+}
+
+
+
+
+
+/********************************/
+/******** HEURE D'ARRIVÉE *******/
 /********************************/
 
 
 function calculateArrivalTime(){
 
 
-    let date =
+    const date =
 
     new Date();
 
@@ -452,162 +628,29 @@ function calculateArrivalTime(){
 
 }
 
-/********************************/
-/******** COÛT DU TRAJET ********/
-/********************************/
-
-
-function calculateTravelCost(){
-
-
-    if(
-
-        vehicleSettings.fuel ===
-
-        "Electrique"
-
-    ){
-
-
-        navigationTravelCost =
-
-        Math.max(
-
-            1,
-
-            Math.round(
-
-                navigationDistance *
-
-                0.04
-
-            )
-
-        )
-
-        + " €";
-
-
-    }
-
-
-    else{
-
-
-        navigationTravelCost =
-
-        Math.max(
-
-            1,
-
-            Math.round(
-
-                navigationDistance *
-
-                0.12
-
-            )
-
-        )
-
-        + " €";
-
-
-    }
-
-
-}
-
 
 
 
 
 /********************************/
-/******** AFFICHAGE NAV *********/
-/********************************/
-
-
-function showNavigationInformations(){
-
-
-
-    let container =
-
-    document.getElementById(
-
-        "navigationInformations"
-
-    );
-
-
-
-    if(!container){
-
-
-        return;
-
-
-    }
-
-
-
-    container.style.display =
-
-    "flex";
-
-
-
-    updateNavigationInformations();
-
-
-
-}
-
-
-
-
-
-function hideNavigationInformations(){
-
-
-
-    let container =
-
-    document.getElementById(
-
-        "navigationInformations"
-
-    );
-
-
-
-    if(container){
-
-
-        container.style.display =
-
-        "none";
-
-
-    }
-
-
-}
-
-
-
-
-
-/********************************/
-/******** MISE À JOUR ***********/
+/******** MISE À JOUR GPS *******/
 /********************************/
 
 
 function updateNavigationInformations(){
 
 
+    updateRemainingDistance();
 
-    let distance =
+
+    updateRemainingTime();
+
+
+    calculateArrivalTime();
+
+
+
+    const distance =
 
     document.getElementById(
 
@@ -617,7 +660,7 @@ function updateNavigationInformations(){
 
 
 
-    let time =
+    const duration =
 
     document.getElementById(
 
@@ -627,17 +670,7 @@ function updateNavigationInformations(){
 
 
 
-    let cost =
-
-    document.getElementById(
-
-        "travelCost"
-
-    );
-
-
-
-    let arrival =
+    const arrival =
 
     document.getElementById(
 
@@ -647,9 +680,11 @@ function updateNavigationInformations(){
 
 
 
+    if(
 
-    if(distance){
+        distance
 
+    ){
 
         distance.innerHTML =
 
@@ -657,59 +692,100 @@ function updateNavigationInformations(){
 
         " km";
 
-
     }
 
 
 
+    if(
 
-    if(time){
+        duration
 
+    ){
 
-        time.innerHTML =
+        duration.innerHTML =
 
         navigationRemainingTime +
 
         " min";
 
-
     }
 
 
 
+    if(
 
-    if(cost){
+        arrival
 
-
-        cost.innerHTML =
-
-        navigationTravelCost;
-
-
-    }
-
-
-
-
-    if(arrival){
-
+    ){
 
         arrival.innerHTML =
 
         navigationArrivalTime;
 
-
     }
 
 
 }
 
 /********************************/
-/******** SUIVI NAVIGATION ******/
+/******** GUIDAGE VOCAL *********/
 /********************************/
 
 
-function updateNavigation(){
+function speakNavigation(
+
+    message
+
+){
+
+    if(
+
+        !("speechSynthesis" in window)
+
+    ){
+
+        return;
+
+    }
+
+
+    const speech =
+
+    new SpeechSynthesisUtterance(
+
+        message
+
+    );
+
+
+    speech.lang =
+
+    "fr-FR";
+
+
+    speech.rate =
+
+    1;
+
+
+    window.speechSynthesis.speak(
+
+        speech
+
+    );
+
+}
+
+
+
+
+
+/********************************/
+/******** RECALCUL AUTO *********/
+/********************************/
+
+
+async function recalculateRoute(){
 
 
     if(
@@ -721,255 +797,6 @@ function updateNavigation(){
         return;
 
     }
-
-
-
-    if(
-
-        currentPosition.latitude === 0 ||
-
-        currentPosition.longitude === 0
-
-    ){
-
-        return;
-
-    }
-
-
-
-    updateRemainingDistance();
-
-
-
-    followNavigation();
-
-
-
-}
-
-
-
-
-
-/********************************/
-/******** SUIVI GPS *************/
-/********************************/
-
-
-function followNavigation(){
-
-
-    if(
-
-        !autoFollowGPS ||
-
-        !userMarker
-
-    ){
-
-        return;
-
-    }
-
-
-
-    map.setView(
-
-        [
-
-            currentPosition.latitude,
-
-            currentPosition.longitude
-
-        ],
-
-        18
-
-    );
-
-
-}
-
-
-
-
-
-/********************************/
-/******** DISTANCE RESTANTE *****/
-/********************************/
-
-
-function updateRemainingDistance(){
-
-
-    if(
-
-        !destinationMarker
-
-    ){
-
-        return;
-
-    }
-
-
-
-    let destination =
-
-    destinationMarker.getLatLng();
-
-
-
-    let distance =
-
-    calculateDistance(
-
-        currentPosition.latitude,
-
-        currentPosition.longitude,
-
-        destination.lat,
-
-        destination.lng
-
-    );
-
-
-
-    navigationRemainingDistance =
-
-    Math.round(
-
-        distance
-
-    );
-
-
-
-    if(
-
-        navigationRemainingDistance <= 1
-
-    ){
-
-        navigationRemainingDistance =
-
-        0;
-
-
-        destinationReached();
-
-
-    }
-
-
-
-    updateRemainingTime();
-
-
-
-    updateNavigationInformations();
-
-
-}
-
-
-
-
-
-/********************************/
-/******** TEMPS RESTANT *********/
-/********************************/
-
-
-function updateRemainingTime(){
-
-
-    navigationRemainingTime =
-
-    Math.max(
-
-        0,
-
-        Math.round(
-
-            (
-
-                navigationRemainingDistance
-
-                /
-
-                80
-
-            )
-
-            *
-
-            60
-
-        )
-
-    );
-
-
-
-    calculateArrivalTime();
-
-
-}
-
-/********************************/
-/******** ARRIVÉE GPS ***********/
-/********************************/
-
-
-function destinationReached(){
-
-
-    showNotification(
-
-        "Vous êtes arrivé à destination."
-
-    );
-
-
-
-    speakNavigation(
-
-        "Vous êtes arrivé à destination."
-
-    );
-
-
-
-    stopNavigation();
-
-
-}
-
-
-
-
-
-/********************************/
-/******** RECALCUL TRAJET *******/
-/********************************/
-
-
-function recalculateRoute(){
-
-
-    if(
-
-        !navigationStarted
-
-    ){
-
-        return;
-
-    }
-
 
 
     showNotification(
@@ -979,16 +806,7 @@ function recalculateRoute(){
     );
 
 
-
-    speakNavigation(
-
-        "Recalcul de l'itinéraire."
-
-    );
-
-
-
-    calculateRoute();
+    await calculateRoute();
 
 
 }
@@ -998,76 +816,11 @@ function recalculateRoute(){
 
 
 /********************************/
-/******** NOTIFICATIONS VOCALES **/
+/******** SORTIE DE ROUTE *******/
 /********************************/
 
 
-function speakNavigation(
-
-
-    message
-
-
-){
-
-
-    if(
-
-        !("speechSynthesis"
-
-        in window)
-
-    ){
-
-        return;
-
-    }
-
-
-
-    let speech =
-
-    new SpeechSynthesisUtterance(
-
-        message
-
-    );
-
-
-
-    speech.lang =
-
-    "fr-FR";
-
-
-
-    speech.rate =
-
-    1;
-
-
-
-    window.speechSynthesis
-
-    .speak(
-
-        speech
-
-    );
-
-
-}
-
-
-
-
-
-/********************************/
-/******** SURVEILLANCE GPS ******/
-/********************************/
-
-
-function checkNavigationPosition(){
+function checkRouteDeviation(){
 
 
     if(
@@ -1083,14 +836,13 @@ function checkNavigationPosition(){
     }
 
 
-
-    let destination =
+    const destination =
 
     destinationMarker.getLatLng();
 
 
 
-    let distance =
+    const distance =
 
     calculateDistance(
 
@@ -1121,17 +873,25 @@ function checkNavigationPosition(){
 
 }
 
+
+
+
+
 /********************************/
-/******** PAUSE CONSEILLÉE ******/
+/*********** SUIVI GPS **********/
 /********************************/
 
 
-function checkRecommendedStop(){
+function followNavigation(){
 
 
     if(
 
-        navigationDistance < 200
+        !navigationStarted ||
+
+        !autoFollowMap ||
+
+        !map
 
     ){
 
@@ -1140,27 +900,25 @@ function checkRecommendedStop(){
     }
 
 
+    map.flyTo(
 
-    let stop =
+        [
 
-    document.getElementById(
+            currentPosition.latitude,
 
-        "recommendedStop"
+            currentPosition.longitude
+
+        ],
+
+        navigationZoom,
+
+        {
+
+            duration:1
+
+        }
 
     );
-
-
-
-    if(stop){
-
-
-        stop.innerHTML =
-
-        "Pause conseillée dans 2 h";
-
-
-    }
-
 
 
 }
@@ -1170,72 +928,200 @@ function checkRecommendedStop(){
 
 
 /********************************/
-/******** AUTONOMIE *************/
+/******** ACTUALISATION GPS *****/
 /********************************/
 
 
-function updateVehicleRange(){
+function updateNavigation(){
 
 
-    let range =
+    if(
 
-    document.getElementById(
+        !navigationStarted
 
-        "vehicleRange"
-
-    );
-
-
-
-    if(!range){
+    ){
 
         return;
 
     }
 
 
+    updateNavigationInformations();
+
+
+    followNavigation();
+
+
+    checkRouteDeviation();
+
+
+}
+
+/********************************/
+/******** AFFICHAGE GPS *********/
+/********************************/
+
+
+function showNavigationInformations(){
+
+
+    const container =
+
+    document.getElementById(
+
+        "navigationInformations"
+
+    );
+
 
     if(
 
-        vehicleSettings.range <=
-
-        navigationDistance
+        !container
 
     ){
 
+        return;
 
-        range.innerHTML =
-
-        "Recharge nécessaire";
-
+    }
 
 
-        showNotification(
+    container.style.display =
 
-            "Autonomie insuffisante."
+    "flex";
 
-        );
 
+    updateNavigationInformations();
+
+
+}
+
+
+
+
+
+/********************************/
+/******** MASQUER GPS ***********/
+/********************************/
+
+
+function hideNavigationInformations(){
+
+
+    const container =
+
+    document.getElementById(
+
+        "navigationInformations"
+
+    );
+
+
+    if(
+
+        container
+
+    ){
+
+        container.style.display =
+
+        "none";
+
+    }
+
+
+}
+
+
+
+
+
+/********************************/
+/******** BOUTON DÉMARRER *******/
+/********************************/
+
+
+function hideStartButton(){
+
+
+    const button =
+
+    document.getElementById(
+
+        "startNavigation"
+
+    );
+
+
+    if(
+
+        button
+
+    ){
+
+        button.style.display =
+
+        "none";
+
+    }
+
+
+}
+
+
+
+
+function showStartButton(){
+
+
+    const button =
+
+    document.getElementById(
+
+        "startNavigation"
+
+    );
+
+
+    if(
+
+        button
+
+    ){
+
+        button.style.display =
+
+        "block";
+
+    }
+
+
+}
+
+
+
+
+
+/********************************/
+/******** INTERFACE GPS *********/
+/********************************/
+
+
+function updateNavigationInterface(){
+
+
+    if(
+
+        navigationStarted
+
+    ){
+
+        hideStartButton();
 
     }
 
     else{
 
-
-        let remaining =
-
-        vehicleSettings.range -
-
-        navigationDistance;
-
-
-
-        range.innerHTML =
-
-        remaining +
-
-        " km";
-
+        showStartButton();
 
     }
 
@@ -1247,182 +1133,42 @@ function updateVehicleRange(){
 
 
 /********************************/
-/******** CARBURANT *************/
+/*********** INFORMATIONS *******/
 /********************************/
 
 
-function updateVehicleFuel(){
+function getNavigationInformations(){
 
 
-    let fuel =
+    return{
 
-    document.getElementById(
+        distance:
 
-        "vehicleFuel"
-
-    );
-
-
-
-    if(!fuel){
-
-        return;
-
-    }
+        navigationRemainingDistance,
 
 
 
-    fuel.innerHTML =
+        duration:
 
-    vehicleSettings.fuel;
+        navigationRemainingTime,
+
+
+
+        arrival:
+
+        navigationArrivalTime,
+
+
+
+        started:
+
+        navigationStarted
+
+
+    };
 
 
 }
-
-
-
-
-
-/********************************/
-/******** BORNES PROCHES ********/
-/********************************/
-
-
-function searchNearbyCharging(){
-
-
-    if(
-
-        typeof searchCategory ===
-
-        "function"
-
-    ){
-
-
-        searchCategory(
-
-            "charging"
-
-        );
-
-
-    }
-
-
-}
-
-
-
-
-
-/********************************/
-/******** STATIONS PROCHES ******/
-/********************************/
-
-
-function searchNearbyFuel(){
-
-
-    if(
-
-        typeof searchCategory ===
-
-        "function"
-
-    ){
-
-
-        searchCategory(
-
-            "fuel"
-
-        );
-
-
-    }
-
-
-}
-
-
-
-
-
-/********************************/
-/******** MISE À JOUR AUTO ******/
-/********************************/
-
-
-function updateVehicleInformations(){
-
-
-    updateVehicleRange();
-
-
-    updateVehicleFuel();
-
-
-    checkRecommendedStop();
-
-
-}
-
-/********************************/
-/******** ACTUALISATION *********/
-/********************************/
-
-
-function refreshNavigation(){
-
-
-    if(!navigationStarted){
-
-        return;
-
-    }
-
-
-
-    updateNavigation();
-
-
-    checkNavigationPosition();
-
-
-    updateVehicleInformations();
-
-
-}
-
-
-
-
-
-/********************************/
-/******** BOUCLE GPS ************/
-/********************************/
-
-
-setInterval(
-
-    function(){
-
-
-        if(navigationStarted){
-
-
-            refreshNavigation();
-
-
-        }
-
-
-    },
-
-    5000
-
-);
 
 
 
@@ -1436,18 +1182,53 @@ setInterval(
 function synchronizeNavigation(){
 
 
-    if(!navigationStarted){
+    if(
+
+        !navigationStarted
+
+    ){
 
         return;
 
     }
 
 
-
     updateNavigationInformations();
 
 
-    calculateArrivalTime();
+    updateNavigationInterface();
+
+
+}
+
+/********************************/
+/******** ARRIVÉE GPS ***********/
+/********************************/
+
+
+function checkDestinationReached(){
+
+
+    if(
+
+        !navigationStarted
+
+    ){
+
+        return;
+
+    }
+
+
+    if(
+
+        navigationRemainingDistance <= 0
+
+    ){
+
+        destinationReached();
+
+    }
 
 
 }
@@ -1457,11 +1238,414 @@ function synchronizeNavigation(){
 
 
 /********************************/
+/******** SURVEILLANCE GPS ******/
+/********************************/
+
+
+function checkNavigationStatus(){
+
+
+    if(
+
+        !navigationStarted
+
+    ){
+
+        return;
+
+    }
+
+
+    if(
+
+        !hasGPSPosition()
+
+    ){
+
+        showNotification(
+
+            "Signal GPS perdu."
+
+        );
+
+        return;
+
+    }
+
+
+    checkDestinationReached();
+
+
+}
+
+
+
+
+
+/********************************/
+/*********** ACTUALISATION ******/
+/********************************/
+
+
+function refreshNavigation(){
+
+
+    if(
+
+        !navigationStarted
+
+    ){
+
+        return;
+
+    }
+
+
+    updateNavigation();
+
+
+    synchronizeNavigation();
+
+
+    checkNavigationStatus();
+
+
+}
+
+
+
+
+
+/********************************/
+/******** PERFORMANCE GPS *******/
+/********************************/
+
+
+function optimizeNavigation(){
+
+
+    if(
+
+        !navigationStarted
+
+    ){
+
+        return;
+
+    }
+
+
+    if(
+
+        navigationRemainingDistance <= 5
+
+    ){
+
+        navigationRefreshTime =
+
+        2000;
+
+    }
+
+    else{
+
+        navigationRefreshTime =
+
+        3000;
+
+    }
+
+
+}
+
+
+
+
+
+/********************************/
+/*********** INFORMATIONS *******/
+/********************************/
+
+
+function getNavigationStatus(){
+
+
+    return{
+
+        started:
+
+        navigationStarted,
+
+
+
+        distance:
+
+        navigationRemainingDistance,
+
+
+
+        duration:
+
+        navigationRemainingTime,
+
+
+
+        arrival:
+
+        navigationArrivalTime
+
+
+    };
+
+
+}
+
+
+
+
+
+/********************************/
+/************ GPS LIVE **********/
+/********************************/
+
+
+setInterval(
+
+    ()=>{
+
+
+        if(
+
+            navigationStarted
+
+        ){
+
+
+            refreshNavigation();
+
+
+            optimizeNavigation();
+
+
+        }
+
+
+    },
+
+    navigationRefreshTime
+
+);
+
+/********************************/
+/******** NOTIFICATIONS GPS *****/
+/********************************/
+
+
+function notifyNavigation(
+
+    message
+
+){
+
+    showNotification(
+
+        message
+
+    );
+
+}
+
+
+function notifyArrival(){
+
+
+    notifyNavigation(
+
+        "Vous êtes arrivé à destination."
+
+    );
+
+
+    speakNavigation(
+
+        "Vous êtes arrivé à destination."
+
+    );
+
+}
+
+
+
+
+function notifyRecalculation(){
+
+
+    notifyNavigation(
+
+        "Recalcul de l'itinéraire."
+
+    );
+
+
+    speakNavigation(
+
+        "Recalcul de l'itinéraire."
+
+    );
+
+}
+
+
+
+
+
+/********************************/
+/******** GUIDAGE VOCAL *********/
+/********************************/
+
+
+function announceDistance(){
+
+
+    if(
+
+        navigationRemainingDistance <= 1
+
+    ){
+
+        speakNavigation(
+
+            "Vous arrivez à destination."
+
+        );
+
+    }
+
+
+    else if(
+
+        navigationRemainingDistance <= 5
+
+    ){
+
+        speakNavigation(
+
+            "Il vous reste "
+
+            +
+
+            navigationRemainingDistance
+
+            +
+
+            " kilomètres."
+
+        );
+
+    }
+
+
+}
+
+
+
+
+
+/********************************/
+/*********** EXPORTS ************/
+/********************************/
+
+
+window.ClemMapsNavigation = {
+
+
+    startNavigation,
+
+    stopNavigation,
+
+    calculateRoute,
+
+    recalculateRoute,
+
+    refreshNavigation,
+
+    getNavigationStatus,
+
+    getNavigationInformations,
+
+    isNavigationStarted
+
+
+};
+
+
+
+
+
+/********************************/
+/******** SYNCHRONISATION *******/
+/********************************/
+
+
+function synchronizeNavigationModule(){
+
+
+    updateNavigationInterface();
+
+
+    updateNavigationInformations();
+
+
+}
+
+
+
+
+
+/********************************/
+/*********** GPS LIVE ***********/
+/********************************/
+
+
+setInterval(
+
+    ()=>{
+
+
+        if(
+
+            navigationStarted
+
+        ){
+
+
+            announceDistance();
+
+
+            synchronizeNavigationModule();
+
+
+        }
+
+
+    },
+
+    30000
+
+);
+
+/********************************/
 /******** INITIALISATION ********/
 /********************************/
 
 
 function initializeNavigationModule(){
+
+
+    initializeNavigation();
+
+
+    updateNavigationInterface();
 
 
     console.log(
@@ -1478,7 +1662,90 @@ function initializeNavigationModule(){
 
 
 /********************************/
-/******** AUTO CHARGEMENT *******/
+/*********** DIAGNOSTICS ********/
+/********************************/
+
+
+function getNavigationDiagnostics(){
+
+
+    return{
+
+        started:
+
+        navigationStarted,
+
+
+
+        distance:
+
+        navigationDistance,
+
+
+
+        remainingDistance:
+
+        navigationRemainingDistance,
+
+
+
+        remainingTime:
+
+        navigationRemainingTime,
+
+
+
+        arrival:
+
+        navigationArrivalTime
+
+
+    };
+
+
+}
+
+
+
+
+
+/********************************/
+/*********** EXPORTS ************/
+/********************************/
+
+
+window.Navigation = {
+
+
+    start:startNavigation,
+
+
+
+    stop:stopNavigation,
+
+
+
+    refresh:refreshNavigation,
+
+
+
+    route:calculateRoute,
+
+
+
+    diagnostics:
+
+    getNavigationDiagnostics
+
+
+};
+
+
+
+
+
+/********************************/
+/******** ACTUALISATION GPS *****/
 /********************************/
 
 
@@ -1486,13 +1753,14 @@ window.addEventListener(
 
     "load",
 
-    function(){
+    ()=>{
 
 
         initializeNavigationModule();
 
 
     }
+
 
 );
 
@@ -1501,51 +1769,77 @@ window.addEventListener(
 
 
 /********************************/
-/******** FIN NAVIGATION.JS *****/
+/*********** GPS LIVE ***********/
 /********************************/
 
-/*
 
-Fonctionnalités :
+setInterval(
 
-- Calcul d'itinéraire (OSRM) ;
-- Temps restant ;
-- Distance restante ;
-- Coût estimé du trajet ;
-- Heure d'arrivée ;
-- Recalcul automatique ;
-- Notifications vocales ;
-- Suivi GPS intelligent ;
-- Autonomie du véhicule ;
-- Pauses recommandées ;
-- Stations-service proches ;
-- Bornes électriques proches ;
-- Synchronisation GPS ;
-- Compatible :
-    - iPad ;
-    - iPhone ;
-    - Android ;
-    - PC ;
-    - Vercel.
+    ()=>{
 
-Architecture :
 
-index.html
-      ↓
- js/script.js
-      ↓
-js/navigation.js
-      ↓
-   GPS
-      ↓
- Navigation
-      ↓
- Véhicule
-      ↓
- Notifications
-      ↓
-    OSRM
-      ↓
- OpenStreetMap
+        if(
 
-*/
+            !navigationStarted
+
+        ){
+
+            return;
+
+        }
+
+
+
+        refreshNavigation();
+
+
+    },
+
+
+    3000
+
+
+);
+
+
+
+
+
+/********************************/
+/************* FIN **************/
+/********************************/
+
+
+console.log(
+
+    "--------------------------------"
+
+);
+
+
+console.log(
+
+    "ClemMaps Navigation"
+
+);
+
+
+console.log(
+
+    "Version 1.0"
+
+);
+
+
+console.log(
+
+    "Navigation prête."
+
+);
+
+
+console.log(
+
+    "--------------------------------"
+
+);
