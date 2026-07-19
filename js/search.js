@@ -1,17 +1,17 @@
+"use strict";
+
+
 /********************************/
-/*********** RECHERCHE **********/
+/*********** VARIABLES **********/
 /********************************/
 
 
-let destinationName = "";
+let selectedPlace = null;
 
-let destinationLatitude = 0;
+let searchResults = [];
 
-let destinationLongitude = 0;
+let searchInProgress = false;
 
-
-
-let searchMarkers = [];
 
 
 
@@ -22,118 +22,98 @@ let searchMarkers = [];
 
 function initializeSearch(){
 
-
     console.log(
-
-        "Module recherche chargé."
-
+        "Search.js chargé."
     );
-
 
 }
 
 
 
 
-
 /********************************/
-/******** DESTINATION ***********/
+/*********** RECHERCHE **********/
 /********************************/
 
 
-async function searchDestination(){
+async function performSearch(){
 
-
-    let input =
+    const input =
 
     document.getElementById(
-
-        "destination"
-
+        "searchInput"
     );
 
 
+    if(
 
-    if(!input){
+        !input ||
+
+        !input.value.trim()
+
+    ){
 
         return;
 
     }
 
 
-
-    let value =
-
-    input.value.trim();
-
-
-
-    if(value === ""){
-
-
-        showNotification(
-
-            "Entrez une destination."
-
-        );
-
-
-        return;
-
-    }
-
-
-
-    destinationName =
-
-    value;
-
-
-
-    showNotification(
-
-        "Recherche en cours..."
-
-    );
-
+    searchInProgress = true;
 
 
     try{
 
 
-        let response =
+        const query =
 
-        await fetch(
+        encodeURIComponent(
 
-            "https://nominatim.openstreetmap.org/search?format=json&limit=1&q="
-
-            +
-
-            encodeURIComponent(
-
-                value
-
-            )
+            input.value.trim()
 
         );
 
 
 
-        let data =
+        const response =
+
+        await fetch(
+
+        "https://nominatim.openstreetmap.org/search?format=json&q="
+
+        +
+
+        query
+
+        +
+
+        "&limit=5"
+
+        );
+
+
+        const results =
 
         await response.json();
 
 
 
-        if(data.length === 0){
+        searchResults =
+
+        results;
 
 
-            showNotification(
+
+        if(
+
+            !results.length
+
+        ){
+
+            alert(
 
                 "Aucun résultat."
 
             );
-
 
             return;
 
@@ -141,63 +121,9 @@ async function searchDestination(){
 
 
 
-        destinationLatitude =
+        displaySearchResult(
 
-        parseFloat(
-
-            data[0].lat
-
-        );
-
-
-
-        destinationLongitude =
-
-        parseFloat(
-
-            data[0].lon
-
-        );
-
-
-
-        createDestinationMarker(
-
-            destinationLatitude,
-
-            destinationLongitude,
-
-            destinationName
-
-        );
-
-
-
-        destinationSelected =
-
-        true;
-
-
-
-        addHistory(
-
-            destinationName
-
-        );
-
-
-
-        calculateRoute();
-
-
-
-        showRouteMenu();
-
-
-
-        showNotification(
-
-            "Destination trouvée."
+            results[0]
 
         );
 
@@ -208,13 +134,9 @@ async function searchDestination(){
     catch(error){
 
 
-        console.log(error);
+        console.error(
 
-
-
-        showNotification(
-
-            "Erreur de recherche."
+            error
 
         );
 
@@ -222,41 +144,134 @@ async function searchDestination(){
     }
 
 
+    finally{
+
+
+        searchInProgress =
+
+        false;
+
+
+    }
+
+
 }
 
+
+
+
+
 /********************************/
-/******** SUPPRESSION ***********/
+/*********** RÉSULTATS **********/
 /********************************/
 
 
-function clearSearchMarkers(){
+function displaySearchResult(
+
+result
+
+){
 
 
-    searchMarkers.forEach(
+    if(
 
-        function(marker){
+        !result
 
+    ){
 
-            if(map){
+        return;
 
-
-                map.removeLayer(
-
-                    marker
-
-                );
+    }
 
 
-            }
 
+    const latitude =
 
-        }
+    parseFloat(
+
+        result.lat
 
     );
 
 
 
-    searchMarkers = [];
+    const longitude =
+
+    parseFloat(
+
+        result.lon
+
+    );
+
+
+
+    selectedPlace = {
+
+
+        latitude,
+
+        longitude,
+
+        name:
+
+        result.display_name
+
+
+    };
+
+
+
+    if(
+
+        currentMap
+
+    ){
+
+
+        currentMap.setView(
+
+            [
+
+                latitude,
+
+                longitude
+
+            ],
+
+            16
+
+        );
+
+
+    }
+
+
+
+    L.marker(
+
+        [
+
+            latitude,
+
+            longitude
+
+        ]
+
+    )
+
+    .addTo(
+
+        currentMap
+
+    )
+
+    .bindPopup(
+
+        result.display_name
+
+    )
+
+    .openPopup();
 
 
 }
@@ -264,83 +279,566 @@ function clearSearchMarkers(){
 
 
 
+/********************************/
+/*********** DESTINATION ********/
+/********************************/
+
+
+function getSelectedPlace(){
+
+    return selectedPlace;
+
+}
+
+
+
+function clearSelectedPlace(){
+
+    selectedPlace = null;
+
+}
+
+/********************************/
+/******** RESTAURANTS ***********/
+/********************************/
+
+
+async function findRestaurants(){
+
+
+    if(
+
+        !hasGPSPosition()
+
+    ){
+
+        return;
+
+    }
+
+
+
+    const results =
+
+    await searchRestaurants(
+
+        currentLatitude,
+
+        currentLongitude
+
+    );
+
+
+
+    displayPlaces(
+
+        results
+
+    );
+
+
+}
+
+
+
+
+
+/********************************/
+/*********** HÔTELS *************/
+/********************************/
+
+
+async function findHotels(){
+
+
+    if(
+
+        !hasGPSPosition()
+
+    ){
+
+        return;
+
+    }
+
+
+
+    const results =
+
+    await searchHotels(
+
+        currentLatitude,
+
+        currentLongitude
+
+    );
+
+
+
+    displayPlaces(
+
+        results
+
+    );
+
+
+}
+
+
+
+
+
+/********************************/
+/*********** PARKINGS ***********/
+/********************************/
+
+
+async function findParkings(){
+
+
+    if(
+
+        !hasGPSPosition()
+
+    ){
+
+        return;
+
+    }
+
+
+
+    const results =
+
+    await searchParkings(
+
+        currentLatitude,
+
+        currentLongitude
+
+    );
+
+
+
+    displayPlaces(
+
+        results
+
+    );
+
+
+}
+
+
+
+
+
+/********************************/
+/******** STATIONS-SERVICE ******/
+/********************************/
+
+
+async function findFuel(){
+
+
+    if(
+
+        !hasGPSPosition()
+
+    ){
+
+        return;
+
+    }
+
+
+
+    const results =
+
+    await searchFuelStations(
+
+        currentLatitude,
+
+        currentLongitude
+
+    );
+
+
+
+    displayPlaces(
+
+        results
+
+    );
+
+
+}
+
+
+
+
+
+/********************************/
+/******** BORNES ÉLECTRIQUES ****/
+/********************************/
+
+
+async function findCharging(){
+
+
+    if(
+
+        !hasGPSPosition()
+
+    ){
+
+        return;
+
+    }
+
+
+
+    const results =
+
+    await searchChargingStations(
+
+        currentLatitude,
+
+        currentLongitude
+
+    );
+
+
+
+    displayPlaces(
+
+        results
+
+    );
+
+
+}
+
+
+
+
+
+/********************************/
+/*********** INFORMATIONS *******/
+/********************************/
+
+
+function getSearchResults(){
+
+    return searchResults;
+
+}
+
+
+
+function isSearching(){
+
+    return searchInProgress;
+
+}
+
+/********************************/
+/*********** DESTINATION ********/
+/********************************/
+
+
+function selectDestination(
+
+    latitude,
+
+    longitude,
+
+    name = "Destination"
+
+){
+
+
+    selectedPlace = {
+
+
+        latitude,
+
+        longitude,
+
+        name
+
+
+    };
+
+
+
+    setDestination(
+
+        latitude,
+
+        longitude,
+
+        name
+
+    );
+
+
+}
+
+
+
+
+
+/********************************/
+/*********** NAVIGATION *********/
+/********************************/
+
+
+function navigateToSelectedPlace(){
+
+
+    if(
+
+        !selectedPlace
+
+    ){
+
+        alert(
+
+            "Aucune destination sélectionnée."
+
+        );
+
+        return;
+
+    }
+
+
+
+    setDestination(
+
+        selectedPlace.latitude,
+
+        selectedPlace.longitude,
+
+        selectedPlace.name
+
+    );
+
+
+}
+
+
+
+
+
+/********************************/
+/************* CARTE ************/
+/********************************/
+
+
+function centerOnSelectedPlace(){
+
+
+    if(
+
+        !selectedPlace ||
+
+        !currentMap
+
+    ){
+
+        return;
+
+    }
+
+
+
+    currentMap.setView(
+
+        [
+
+            selectedPlace.latitude,
+
+            selectedPlace.longitude
+
+        ],
+
+        17
+
+    );
+
+
+}
+
+
+
+
+
+/********************************/
+/*********** MARQUEURS **********/
+/********************************/
+
+
+function clearSearchResults(){
+
+
+    searchResults = [];
+
+
+    clearPlaceMarkers();
+
+
+}
+
+
+
+
+function removeDestination(){
+
+
+    selectedPlace = null;
+
+
+    clearDestination();
+
+
+}
+
+
+
+
+
+/********************************/
+/*********** INFORMATIONS *******/
+/********************************/
+
+
+function hasSelectedPlace(){
+
+
+    return (
+
+        selectedPlace !== null
+
+    );
+
+
+}
+
+
+
+
+function getSelectedLatitude(){
+
+
+    if(
+
+        !selectedPlace
+
+    ){
+
+        return null;
+
+    }
+
+
+
+    return selectedPlace.latitude;
+
+
+}
+
+
+
+
+function getSelectedLongitude(){
+
+
+    if(
+
+        !selectedPlace
+
+    ){
+
+        return null;
+
+    }
+
+
+
+    return selectedPlace.longitude;
+
+
+}
 
 /********************************/
 /*********** FAVORIS ************/
 /********************************/
 
 
-function addFavoriteDestination(
+let favoritePlaces = [];
 
 
-    destination
 
-
-){
-
+function addFavorite(){
 
 
     if(
 
-        destination === ""
+        !selectedPlace
 
     ){
 
-
         return;
-
 
     }
 
 
 
-    if(
+    favoritePlaces.push(
 
-        favorites.includes(
-
-            destination
-
-        )
-
-    ){
-
-
-        showNotification(
-
-            "Destination déjà enregistrée."
-
-        );
-
-
-        return;
-
-
-    }
-
-
-
-
-    favorites.push(
-
-        destination
+        selectedPlace
 
     );
 
 
-
-    saveAllData();
-
-
-
-    showNotification(
-
-        "Favori ajouté."
-
-    );
+    saveFavorites();
 
 
 }
 
+
+
+
+function getFavorites(){
+
+    return favoritePlaces;
+
+}
+
+
+
+function removeFavorite(
+
+    index
+
+){
+
+
+    favoritePlaces.splice(
+
+        index,
+
+        1
+
+    );
+
+
+    saveFavorites();
+
+
+}
 
 
 
@@ -351,39 +849,38 @@ function addFavoriteDestination(
 /********************************/
 
 
-function saveSearchHistory(
+let searchHistory = [];
 
 
-    destination
 
+function addSearchHistory(
+
+    value
 
 ){
+
+
+    searchHistory.unshift(
+
+        value
+
+    );
 
 
 
     if(
 
-        destination === ""
+        searchHistory.length > 25
 
     ){
 
-
-        return;
-
+        searchHistory.pop();
 
     }
 
 
 
-    addHistory(
-
-        destination
-
-    );
-
-
-
-    saveAllData();
+    saveHistory();
 
 
 }
@@ -391,52 +888,9 @@ function saveSearchHistory(
 
 
 
+function getSearchHistory(){
 
-
-/********************************/
-/********* SUGGESTIONS **********/
-/********************************/
-
-
-function getSuggestions(){
-
-
-
-    return [
-
-
-        "Paris",
-
-
-        "Londres",
-
-
-        "Lille",
-
-
-        "Bordeaux",
-
-
-        "Marseille",
-
-
-        "Disneyland Paris",
-
-
-        "Aéroport Charles de Gaulle",
-
-
-        "Gare du Nord",
-
-
-        "Tour Eiffel",
-
-
-        "Mont Saint-Michel"
-
-
-    ];
-
+    return searchHistory;
 
 }
 
@@ -444,264 +898,161 @@ function getSuggestions(){
 
 
 
-
-function showSuggestions(){
-
-
-
-    let suggestions =
-
-    getSuggestions();
+/********************************/
+/*********** LOCAL STORAGE ******/
+/********************************/
 
 
+function saveFavorites(){
 
-    showNotification(
 
-        suggestions.length +
+    localStorage.setItem(
 
-        " suggestion(s) disponible(s)."
+        "clemmapsFavorites",
+
+        JSON.stringify(
+
+            favoritePlaces
+
+        )
 
     );
 
 
 }
 
-/********************************/
-/******** RECHERCHE LIEUX *******/
-/********************************/
-
-
-async function searchNearby(
-
-    category,
-
-    latitude,
-
-    longitude
-
-){
-
-
-    if(
-
-        latitude === 0 ||
-
-        longitude === 0
-
-    ){
-
-        showNotification(
-
-            "Position GPS inconnue."
-
-        );
-
-        return;
-
-    }
 
 
 
-    showNotification(
+function loadFavorites(){
 
-        "Recherche en cours..."
+
+    const data =
+
+    localStorage.getItem(
+
+        "clemmapsFavorites"
 
     );
-
-
-
-    clearSearchMarkers();
-
-
-
-    try{
-
-
-        let query =
-
-        buildOverpassQuery(
-
-            category,
-
-            latitude,
-
-            longitude
-
-        );
-
-
-
-        let response =
-
-        await fetch(
-
-            "https://overpass-api.de/api/interpreter",
-
-            {
-
-                method:"POST",
-
-                body:query
-
-            }
-
-        );
-
-
-
-        let data =
-
-        await response.json();
-
-
-
-        if(
-
-            data.elements.length === 0
-
-        ){
-
-            showNotification(
-
-                "Aucun résultat."
-
-            );
-
-            return;
-
-        }
-
-
-
-        displayPlaces(
-
-            data.elements
-
-        );
-
-
-
-        showNotification(
-
-            data.elements.length +
-
-            " résultat(s) trouvé(s)."
-
-        );
-
-
-    }
-
-    catch(error){
-
-
-        console.log(
-
-            error
-
-        );
-
-
-
-        showNotification(
-
-            "Erreur de recherche."
-
-        );
-
-
-    }
-
-
-}
-
-
-
-
-
-/********************************/
-/*********** OVERPASS ***********/
-/********************************/
-
-
-function buildOverpassQuery(
-
-    category,
-
-    latitude,
-
-    longitude
-
-){
-
-
-
-    let value =
-
-    category;
 
 
 
     if(
 
-        category === "fuel"
+        data
 
     ){
 
-        value =
+        favoritePlaces =
 
-        "fuel";
+        JSON.parse(
+
+            data
+
+        );
 
     }
 
 
-
-    return `
-
-    [out:json];
-
-    (
-
-        node["amenity"="${value}"]
-
-        (around:5000,
-
-        ${latitude},
-
-        ${longitude});
+}
 
 
 
-        way["amenity"="${value}"]
 
-        (around:5000,
 
-        ${latitude},
+function saveHistory(){
 
-        ${longitude});
+
+    localStorage.setItem(
+
+        "clemmapsHistory",
+
+        JSON.stringify(
+
+            searchHistory
+
+        )
 
     );
-
-    out center;
-
-    `;
 
 
 }
 
+
+
+
+function loadHistory(){
+
+
+    const data =
+
+    localStorage.getItem(
+
+        "clemmapsHistory"
+
+    );
+
+
+
+    if(
+
+        data
+
+    ){
+
+        searchHistory =
+
+        JSON.parse(
+
+            data
+
+        );
+
+    }
+
+
+}
+
+
+
+
+
 /********************************/
-/******** AFFICHAGE LIEUX *******/
+/******** INITIALISATION ********/
 /********************************/
 
 
-function displayPlaces(
+window.addEventListener(
 
-    places
+    "load",
 
-){
+    ()=>{
 
 
-    if(!map){
+        loadFavorites();
+
+
+        loadHistory();
+
+
+    }
+
+
+);
+
+/********************************/
+/******** AUTOUR DE MOI *********/
+/********************************/
+
+
+async function searchAroundMe(){
+
+
+    if(
+
+        !hasGPSPosition()
+
+    ){
 
         return;
 
@@ -709,557 +1060,279 @@ function displayPlaces(
 
 
 
-    let bounds = [];
+    const results =
 
+    await searchAroundMePlaces(
 
+        currentLatitude,
 
-    places.forEach(
-
-        function(place){
-
-
-
-            let latitude =
-
-            place.lat ||
-
-            place.center.lat;
-
-
-
-            let longitude =
-
-            place.lon ||
-
-            place.center.lon;
-
-
-
-            let name =
-
-            place.tags.name ||
-
-            "Lieu inconnu";
-
-
-
-
-            let marker =
-
-            L.marker(
-
-                [
-
-                    latitude,
-
-                    longitude
-
-                ]
-
-            )
-
-            .addTo(
-
-                map
-
-            );
-
-
-
-
-            marker.bindPopup(
-
-                "<b>" +
-
-                name +
-
-                "</b>"
-
-            );
-
-
-
-            searchMarkers.push(
-
-                marker
-
-            );
-
-
-
-            bounds.push(
-
-                [
-
-                    latitude,
-
-                    longitude
-
-                ]
-
-            );
-
-
-        }
+        currentLongitude
 
     );
 
 
+
+    displayPlaces(
+
+        results
+
+    );
+
+
+}
+
+
+
+
+
+/********************************/
+/*********** ACTUALISATION ******/
+/********************************/
+
+
+function refreshSelectedPlace(){
 
 
     if(
 
-        bounds.length > 0
+        !selectedPlace
 
     ){
-
-
-        map.fitBounds(
-
-            bounds,
-
-            {
-
-                padding:[
-
-                    50,
-
-                    50
-
-                ]
-
-            }
-
-        );
-
-
-    }
-
-
-}
-
-
-
-
-
-/********************************/
-/******** CATEGORIES ************/
-/********************************/
-
-
-function searchRestaurants(){
-
-
-    searchNearby(
-
-        "restaurant",
-
-        currentPosition.latitude,
-
-        currentPosition.longitude
-
-    );
-
-
-}
-
-
-
-
-function searchHotels(){
-
-
-    searchNearby(
-
-        "hotel",
-
-        currentPosition.latitude,
-
-        currentPosition.longitude
-
-    );
-
-
-}
-
-
-
-
-function searchParking(){
-
-
-    searchNearby(
-
-        "parking",
-
-        currentPosition.latitude,
-
-        currentPosition.longitude
-
-    );
-
-
-}
-
-
-
-
-function searchFuelStations(){
-
-
-    searchNearby(
-
-        "fuel",
-
-        currentPosition.latitude,
-
-        currentPosition.longitude
-
-    );
-
-
-}
-
-
-
-
-function searchChargingStations(){
-
-
-    searchNearby(
-
-        "charging_station",
-
-        currentPosition.latitude,
-
-        currentPosition.longitude
-
-    );
-
-
-}
-
-/********************************/
-/******** CATEGORIES BONUS ******/
-/********************************/
-
-
-function searchShops(){
-
-
-    searchNearby(
-
-        "supermarket",
-
-        currentPosition.latitude,
-
-        currentPosition.longitude
-
-    );
-
-
-}
-
-
-
-
-function searchHospitals(){
-
-
-    searchNearby(
-
-        "hospital",
-
-        currentPosition.latitude,
-
-        currentPosition.longitude
-
-    );
-
-
-}
-
-
-
-
-function searchPharmacies(){
-
-
-    searchNearby(
-
-        "pharmacy",
-
-        currentPosition.latitude,
-
-        currentPosition.longitude
-
-    );
-
-
-}
-
-
-
-
-function searchAirports(){
-
-
-    searchNearby(
-
-        "aerodrome",
-
-        currentPosition.latitude,
-
-        currentPosition.longitude
-
-    );
-
-
-}
-
-
-
-
-function searchTrainStations(){
-
-
-    searchNearby(
-
-        "station",
-
-        currentPosition.latitude,
-
-        currentPosition.longitude
-
-    );
-
-
-}
-
-
-
-
-
-/********************************/
-/******** RECHERCHE AUTO ********/
-/********************************/
-
-
-function searchCategory(
-
-    category
-
-){
-
-
-    switch(category){
-
-
-        case "restaurant":
-
-            searchRestaurants();
-
-        break;
-
-
-
-        case "hotel":
-
-            searchHotels();
-
-        break;
-
-
-
-        case "parking":
-
-            searchParking();
-
-        break;
-
-
-
-        case "fuel":
-
-            searchFuelStations();
-
-        break;
-
-
-
-        case "charging":
-
-            searchChargingStations();
-
-        break;
-
-
-
-        case "shop":
-
-            searchShops();
-
-        break;
-
-
-
-        case "hospital":
-
-            searchHospitals();
-
-        break;
-
-
-
-        case "pharmacy":
-
-            searchPharmacies();
-
-        break;
-
-
-
-        case "airport":
-
-            searchAirports();
-
-        break;
-
-
-
-        case "station":
-
-            searchTrainStations();
-
-        break;
-
-
-
-        default:
-
-
-            showNotification(
-
-                "Catégorie inconnue."
-
-            );
-
-
-        break;
-
-
-    }
-
-
-}
-
-/********************************/
-/******** RECHERCHE VOCALE ******/
-/********************************/
-
-
-function voiceSearch(){
-
-
-    if(
-
-        !("webkitSpeechRecognition"
-
-        in window)
-
-    ){
-
-
-        showNotification(
-
-            "Recherche vocale indisponible."
-
-        );
-
 
         return;
 
+    }
+
+
+
+    centerOnSelectedPlace();
+
+
+}
+
+
+
+
+
+/********************************/
+/*********** OPTIMISATION *******/
+/********************************/
+
+
+function clearSearch(){
+
+
+    clearSelectedPlace();
+
+
+    clearSearchResults();
+
+
+}
+
+
+
+
+function resetSearch(){
+
+
+    clearSearch();
+
+
+    searchInProgress =
+
+    false;
+
+
+}
+
+
+
+
+
+/********************************/
+/*********** GPS LIVE ***********/
+/********************************/
+
+
+function updateSearch(){
+
+
+    if(
+
+        !hasGPSPosition()
+
+    ){
+
+        return;
 
     }
 
 
 
-    let recognition =
+    if(
 
-    new webkitSpeechRecognition();
+        hasSelectedPlace()
 
+    ){
 
+        refreshSelectedPlace();
 
-    recognition.lang =
-
-    "fr-FR";
-
-
-
-    recognition.start();
+    }
 
 
-
-    recognition.onresult =
-
-    function(event){
+}
 
 
 
-        let result =
-
-        event.results[0][0]
-
-        .transcript;
 
 
-
-        let input =
-
-        document.getElementById(
-
-            "destination"
-
-        );
+/********************************/
+/*********** INFORMATIONS *******/
+/********************************/
 
 
-
-        if(input){
-
-
-            input.value =
-
-            result;
+function getSearchInformations(){
 
 
-        }
+    return{
+
+
+        selected:
+
+        hasSelectedPlace(),
 
 
 
-        searchDestination();
+        searching:
+
+        searchInProgress,
 
 
 
-    };
+        results:
+
+        searchResults.length,
 
 
 
-    recognition.onerror =
+        favorites:
 
-    function(){
+        favoritePlaces.length,
 
 
-        showNotification(
 
-            "Erreur lors de la reconnaissance vocale."
+        history:
 
-        );
+        searchHistory.length
 
 
     };
 
 
 }
+
+
+
+
+
+/********************************/
+/*********** ACTUALISATION ******/
+/********************************/
+
+
+setInterval(
+
+
+    ()=>{
+
+
+        updateSearch();
+
+
+    },
+
+
+    5000
+
+
+);
+
+/********************************/
+/*********** DIAGNOSTICS ********/
+/********************************/
+
+
+function getSearchDiagnostics(){
+
+
+    return{
+
+        selectedPlace,
+
+        searching:
+
+        searchInProgress,
+
+        results:
+
+        searchResults.length,
+
+        favorites:
+
+        favoritePlaces.length,
+
+        history:
+
+        searchHistory.length
+
+    };
+
+
+}
+
+
+
+
+
+/********************************/
+/*********** EXPORTS ************/
+/********************************/
+
+
+window.ClemMapsSearch = {
+
+    performSearch,
+
+    findRestaurants,
+
+    findHotels,
+
+    findParkings,
+
+    findFuel,
+
+    findCharging,
+
+    searchAroundMe,
+
+    selectDestination,
+
+    navigateToSelectedPlace,
+
+    getSelectedPlace,
+
+    getFavorites,
+
+    getSearchHistory,
+
+    clearSearch,
+
+    resetSearch,
+
+    getSearchDiagnostics
+
+};
 
 
 
@@ -1273,9 +1346,18 @@ function voiceSearch(){
 function initializeSearchModule(){
 
 
+    initializeSearch();
+
+
+    loadFavorites();
+
+
+    loadHistory();
+
+
     console.log(
 
-        "Module recherche prêt."
+        "Search prêt."
 
     );
 
@@ -1287,81 +1369,7 @@ function initializeSearchModule(){
 
 
 /********************************/
-/******** COMPATIBILITÉ *********/
-/********************************/
-
-
-function isMobileDevice(){
-
-
-    return /Android|iPhone|iPad|iPod/i
-
-    .test(
-
-        navigator.userAgent
-
-    );
-
-
-}
-
-
-
-
-function isIPad(){
-
-
-    return /iPad/i
-
-    .test(
-
-        navigator.userAgent
-
-    );
-
-
-}
-
-
-
-
-function isAndroid(){
-
-
-    return /Android/i
-
-    .test(
-
-        navigator.userAgent
-
-    );
-
-
-}
-
-
-
-
-function isIPhone(){
-
-
-    return /iPhone/i
-
-    .test(
-
-        navigator.userAgent
-
-    );
-
-
-}
-
-
-
-
-
-/********************************/
-/******** AUTO CHARGEMENT *******/
+/*********** DÉMARRAGE **********/
 /********************************/
 
 
@@ -1369,13 +1377,14 @@ window.addEventListener(
 
     "load",
 
-    function(){
+    ()=>{
 
 
         initializeSearchModule();
 
 
     }
+
 
 );
 
@@ -1384,34 +1393,40 @@ window.addEventListener(
 
 
 /********************************/
-/******** FIN SEARCH.JS *********/
+/************* FIN **************/
 /********************************/
 
-/*
 
-Fonctionnalités :
+console.log(
 
-- Recherche d'adresses ;
-- Calcul d'itinéraires ;
-- Restaurants ;
-- Hôtels ;
-- Parkings ;
-- Stations-service ;
-- Bornes électriques ;
-- Hôpitaux ;
-- Pharmacies ;
-- Supermarchés ;
-- Gares ;
-- Aéroports ;
-- Recherche vocale ;
-- Suggestions ;
-- Historique ;
-- Favoris ;
-- Compatible :
-    - iPad ;
-    - iPhone ;
-    - Android ;
-    - PC ;
-    - Vercel.
+    "--------------------------------"
 
-*/
+);
+
+
+console.log(
+
+    "ClemMaps Search"
+
+);
+
+
+console.log(
+
+    "Version 1.0"
+
+);
+
+
+console.log(
+
+    "Module chargé."
+
+);
+
+
+console.log(
+
+    "--------------------------------"
+
+);
