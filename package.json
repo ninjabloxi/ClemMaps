@@ -1,0 +1,25 @@
+{
+  "name": "clemmaps",
+  "version": "1.0.0",
+  "description": "ClemMaps - GPS nouvelle génération",
+  "main": "index.html",
+  "scripts": {
+    "start": "serve .",
+    "dev": "serve ."
+  },
+  "keywords": [
+    "gps",
+    "maps",
+    "navigation",
+    "leaflet",
+    "openstreetmap"
+  ],
+  "author": "ClemMaps",
+  "license": "MIT",
+  "dependencies": {
+    "leaflet": "^1.9.4"
+  },
+  "devDependencies": {
+    "serve": "^14.2.4"
+  }
+}

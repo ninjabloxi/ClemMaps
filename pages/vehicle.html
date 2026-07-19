@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+
+<html lang="fr">
+
+
+<head>
+
+
+<meta charset="UTF-8">
+
+
+<meta name="viewport"
+content="width=device-width,initial-scale=1.0">
+
+
+<title>
+ClemMaps - Véhicule
+</title>
+
+
+
+<link rel="stylesheet"
+href="../style.css">
+
+
+
+<style>
+
+
+body{
+
+background:#202124;
+
+color:white;
+
+font-family:Roboto,Arial,sans-serif;
+
+overflow:auto;
+
+}
+
+
+
+.vehiclePage{
+
+padding:20px;
+
+max-width:800px;
+
+margin:auto;
+
+}
+
+
+
+.headerVehicle{
+
+display:flex;
+
+align-items:center;
+
+gap:15px;
+
+margin-bottom:25px;
+
+}
+
+
+
+.headerVehicle h1{
+
+font-size:28px;
+
+font-weight:500;
+
+}
+
+
+
+.backButton{
+
+width:50px;
+
+height:50px;
+
+border:none;
+
+border-radius:50%;
+
+background:#303134;
+
+color:white;
+
+font-size:25px;
+
+cursor:pointer;
+
+}
+
+
+
+.vehicleCard{
+
+background:#303134;
+
+padding:20px;
+
+border-radius:25px;
+
+margin-bottom:20px;
+
+box-shadow:
+
+0 5px 20px rgba(0,0,0,.4);
+
+}
+
+
+
+.vehicleCard h2{
+
+font-size:21px;
+
+margin-bottom:15px;
+
+}
+
+
+
+.inputField{
+
+width:100%;
+
+padding:15px;
+
+background:#202124;
+
+border:none;
+
+outline:none;
+
+border-radius:15px;
+
+color:white;
+
+font-size:16px;
+
+margin-bottom:12px;
+
+}
+
+
+
+select{
+
+width:100%;
+
+padding:15px;
+
+background:#202124;
+
+color:white;
+
+border:none;
+
+border-radius:15px;
+
+font-size:16px;
+
+}
+
+
+
+.actionButton{
+
+width:100%;
+
+padding:16px;
+
+border:none;
+
+border-radius:20px;
+
+background:#8AB4F8;
+
+font-size:17px;
+
+cursor:pointer;
+
+margin-top:10px;
+
+}
+
+
+</style>
+
+
+</head>
+
+
+<body>
+
+
+<div class="vehiclePage">
+
+
+<div class="headerVehicle">
+
+
+<button class="backButton"
+onclick="location.href='../index.html'">
+
+←
+
+</button>
+
+
+<h1>
+Mon véhicule
+</h1>
+
+
+</div>
+
+<div class="vehicleCard">
+
+
+<h2>
+🚗 Informations générales
+</h2>
+
+
+
+<input class="inputField"
+id="vehicleBrand"
+placeholder="Marque du véhicule">
+
+
+
+<input class="inputField"
+id="vehicleModel"
+placeholder="Modèle du véhicule">
+
+
+
+<select id="vehicleType">
+
+
+<option value="">
+Type de véhicule
+</option>
+
+
+<option value="car">
+🚗 Voiture
+</option>
+
+
+<option value="motorcycle">
+🏍️ Moto
+</option>
+
+
+<option value="scooter">
+🛵 Scooter
+</option>
+
+
+<option value="bike">
+🚲 Vélo
+</option>
+
+
+<option value="ebike">
+⚡ Vélo électrique
+</option>
+
+
+<option value="van">
+🚐 Utilitaire
+</option>
+
+
+<option value="truck">
+🚚 Camion
+</option>
+
+
+<option value="camper">
+🚐 Camping-car
+</option>
+
+
+</select>
+
+
+
+</div>
+
+
+
+
+
+<div class="vehicleCard">
+
+
+<h2>
+⛽ Énergie
+</h2>
+
+
+
+<select id="vehicleEnergy">
+
+
+<option value="">
+Type d'énergie
+</option>
+
+
+<option value="gasoline">
+⛽ Essence
+</option>
+
+
+<option value="diesel">
+⛽ Diesel
+</option>
+
+
+<option value="hybrid">
+🔋 Hybride
+</option>
+
+
+<option value="electric">
+⚡ Électrique
+</option>
+
+
+<option value="gpl">
+🔥 GPL
+</option>
+
+
+<option value="hydrogen">
+💧 Hydrogène
+</option>
+
+
+</select>
+
+
+
+</div>
+
+
+
+
+
+<div class="vehicleCard">
+
+
+<h2>
+📊 Caractéristiques
+</h2>
+
+
+
+<input class="inputField"
+id="vehicleRange"
+type="number"
+placeholder="Autonomie (km)">
+
+
+
+<input class="inputField"
+id="vehicleConsumption"
+type="number"
+placeholder="Consommation (L/100km ou kWh/100km)">
+
+
+
+</div>
+
+<div class="vehicleCard">
+
+
+<h2>
+🔌 Recharge électrique
+</h2>
+
+
+
+<input class="inputField"
+id="vehicleBattery"
+type="number"
+placeholder="Batterie (kWh)">
+
+
+
+<input class="inputField"
+id="vehicleChargeTime"
+type="number"
+placeholder="Temps de recharge (minutes)">
+
+
+
+<select id="vehicleChargingType">
+
+
+<option value="">
+Type de recharge
+</option>
+
+
+<option value="home">
+🏠 Domicile
+</option>
+
+
+<option value="public">
+⚡ Borne publique
+</option>
+
+
+<option value="fast">
+⚡ Recharge rapide
+</option>
+
+
+</select>
+
+
+</div>
+
+
+
+
+
+<div class="vehicleCard">
+
+
+<h2>
+⭐ Véhicule actif
+</h2>
+
+
+
+<div id="currentVehicle">
+
+
+Aucun véhicule enregistré.
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+<div class="vehicleCard">
+
+
+<h2>
+⚙️ Actions
+</h2>
+
+
+
+<button class="actionButton"
+onclick="saveVehicleUI()">
+
+💾 Enregistrer le véhicule
+
+</button>
+
+
+
+<button class="actionButton"
+onclick="deleteVehicleUI()">
+
+🗑️ Supprimer le véhicule
+
+</button>
+
+
+
+</div>
+
+<script src="../js/vehicle.js"></script>
+
+
+<script>
+
+
+/********************************/
+/******** SAUVEGARDE UI *********/
+/********************************/
+
+
+function saveVehicleUI(){
+
+
+    let vehicle = {
+
+
+        brand:
+
+        document.getElementById(
+
+            "vehicleBrand"
+
+        ).value,
+
+
+
+        model:
+
+        document.getElementById(
+
+            "vehicleModel"
+
+        ).value,
+
+
+
+        type:
+
+        document.getElementById(
+
+            "vehicleType"
+
+        ).value,
+
+
+
+        energy:
+
+        document.getElementById(
+
+            "vehicleEnergy"
+
+        ).value,
+
+
+
+        range:
+
+        document.getElementById(
+
+            "vehicleRange"
+
+        ).value,
+
+
+
+        consumption:
+
+        document.getElementById(
+
+            "vehicleConsumption"
+
+        ).value,
+
+
+
+        battery:
+
+        document.getElementById(
+
+            "vehicleBattery"
+
+        ).value,
+
+
+
+        chargeTime:
+
+        document.getElementById(
+
+            "vehicleChargeTime"
+
+        ).value,
+
+
+
+        chargingType:
+
+        document.getElementById(
+
+            "vehicleChargingType"
+
+        ).value
+
+
+    };
+
+
+
+    saveVehicle(
+
+        vehicle
+
+    );
+
+
+
+    displayCurrentVehicle();
+
+
+}
+
+
+
+
+
+/********************************/
+/******** SUPPRESSION ***********/
+/********************************/
+
+
+function deleteVehicleUI(){
+
+
+    deleteVehicle();
+
+
+
+    displayCurrentVehicle();
+
+
+}
+
+
+
+
+
+/********************************/
+/******** AFFICHAGE *************/
+/********************************/
+
+
+function displayCurrentVehicle(){
+
+
+    let box =
+
+    document.getElementById(
+
+        "currentVehicle"
+
+    );
+
+
+
+    let vehicle =
+
+    getVehicle();
+
+
+
+    if(
+
+        !vehicle
+
+    ){
+
+
+        box.innerHTML =
+
+        "Aucun véhicule enregistré.";
+
+
+        return;
+
+
+    }
+
+
+
+    box.innerHTML =
+
+
+    `
+
+    <b>
+
+    ${vehicle.brand}
+
+    ${vehicle.model}
+
+    </b>
+
+    <br>
+
+    Type :
+
+    ${vehicle.type}
+
+    <br>
+
+    Énergie :
+
+    ${vehicle.energy}
+
+    <br>
+
+    Autonomie :
+
+    ${vehicle.range} km
+
+    `;
+
+
+}
+
+
+
+
+
+/********************************/
+/******** CHARGEMENT ************/
+/********************************/
+
+
+window.addEventListener(
+
+    "load",
+
+    function(){
+
+
+        displayCurrentVehicle();
+
+
+    }
+
+);
+
+
+</script>
+
+
+
+</div>
+
+
+</body>
+
+
+</html>

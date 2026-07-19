@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+
+<html lang="fr">
+
+
+<head>
+
+
+<meta charset="UTF-8">
+
+
+<meta name="viewport"
+content="width=device-width,initial-scale=1.0">
+
+
+<title>
+ClemMaps - Navigation
+</title>
+
+
+
+<link rel="stylesheet"
+href="../style.css">
+
+
+
+<style>
+
+
+body{
+
+background:#202124;
+
+color:white;
+
+font-family:Roboto,Arial,sans-serif;
+
+}
+
+
+
+.navigationPage{
+
+height:100vh;
+
+display:flex;
+
+flex-direction:column;
+
+}
+
+
+
+.topNavigation{
+
+
+display:flex;
+
+align-items:center;
+
+gap:15px;
+
+padding:20px;
+
+
+}
+
+
+
+.topNavigation h1{
+
+font-size:26px;
+
+}
+
+
+
+.backButton{
+
+
+width:50px;
+
+height:50px;
+
+border-radius:50%;
+
+border:none;
+
+background:#303134;
+
+color:white;
+
+font-size:24px;
+
+cursor:pointer;
+
+
+}
+
+
+
+
+
+.mapNavigation{
+
+
+flex:1;
+
+background:#303134;
+
+margin:10px;
+
+border-radius:25px;
+
+overflow:hidden;
+
+
+}
+
+
+
+#navigationMap{
+
+
+width:100%;
+
+height:100%;
+
+
+}
+
+
+
+
+
+.infoPanel{
+
+
+background:#303134;
+
+margin:10px;
+
+padding:20px;
+
+border-radius:25px;
+
+
+}
+
+
+</style>
+
+
+</head>
+
+
+<body>
+
+
+<div class="navigationPage">
+
+
+<div class="topNavigation">
+
+
+<button class="backButton"
+onclick="location.href='../index.html'">
+
+←
+
+</button>
+
+
+<h1>
+Navigation
+</h1>
+
+
+</div>
+
+
+
+<div class="mapNavigation">
+
+
+<div id="navigationMap">
+
+</div>
+
+
+</div>
+
+<div class="infoPanel">
+
+
+<h2>
+🧭 Itinéraire
+</h2>
+
+
+
+<div id="nextInstruction">
+
+
+En attente d'un itinéraire...
+
+</div>
+
+
+
+
+<br>
+
+
+
+<div class="navigationInfo">
+
+
+<p>
+
+📍 Distance :
+
+<span id="routeDistance">
+
+--
+
+</span>
+
+</p>
+
+
+
+<p>
+
+⏱️ Temps :
+
+<span id="routeTime">
+
+--
+
+</span>
+
+</p>
+
+
+
+<p>
+
+🚗 Vitesse :
+
+<span id="currentSpeed">
+
+0 km/h
+
+</span>
+
+</p>
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+<div class="infoPanel">
+
+
+<h2>
+Actions
+</h2>
+
+
+
+<button class="actionButton"
+onclick="startNavigationPage()">
+
+▶ Démarrer navigation
+
+</button>
+
+
+
+<button class="actionButton"
+onclick="stopNavigationPage()">
+
+⏹ Arrêter navigation
+
+</button>
+
+
+
+</div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+
+<link rel="stylesheet"
+href="https://unpkg.com/leaflet/dist/leaflet.css">
+
+
+
+<script src="../API/osrm.js"></script>
+
+<script src="../js/gps.js"></script>
+
+<script src="../js/navigation.js"></script>
+
+
+
+<script>
+
+
+let navigationMap = null;
+
+let navigationLayer = null;
+
+
+
+
+/********************************/
+/******** INITIALISATION MAP ****/
+/********************************/
+
+
+function initializeNavigationMap(){
+
+
+    navigationMap =
+
+    L.map(
+
+        "navigationMap"
+
+    )
+
+    .setView(
+
+        [
+
+            48.8566,
+
+            2.3522
+
+        ],
+
+        13
+
+    );
+
+
+
+    L.tileLayer(
+
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+
+        {
+
+            attribution:
+
+            "OpenStreetMap"
+
+        }
+
+    )
+
+    .addTo(
+
+        navigationMap
+
+    );
+
+
+}
+
+
+
+
+
+/********************************/
+/******** AFFICHAGE ROUTE *******/
+/********************************/
+
+
+function displayNavigationRoute(
+
+
+    route
+
+
+){
+
+
+    if(
+
+        !route
+
+    ){
+
+        return;
+
+    }
+
+
+
+    if(
+
+        navigationLayer
+
+    ){
+
+
+        navigationMap.removeLayer(
+
+            navigationLayer
+
+        );
+
+
+    }
+
+
+
+    navigationLayer =
+
+    L.geoJSON(
+
+        route.geometry
+
+    )
+
+    .addTo(
+
+        navigationMap
+
+    );
+
+
+
+    navigationMap.fitBounds(
+
+        navigationLayer.getBounds()
+
+    );
+
+
+}
+
+function updateNavigationInfo(){
+
+
+    if(
+
+        !window.currentNavigationSteps
+
+    ){
+
+        return;
+
+    }
+
+
+
+    let step =
+
+    window.currentNavigationSteps[0];
+
+
+
+    if(
+
+        !step
+
+    ){
+
+        return;
+
+    }
+
+
+
+    let instruction =
+
+    formatNavigationInstruction(
+
+        step
+
+    );
+
+
+
+    document.getElementById(
+
+        "nextInstruction"
+
+    ).innerHTML =
+
+    instruction;
+
+
+}
+
+
+
+
+
+/********************************/
+/******** DÉMARRER **************/
+/********************************/
+
+
+async function startNavigationPage(){
+
+
+    showNotification(
+
+        "Calcul du trajet..."
+
+    );
+
+
+
+    let route =
+
+    await startOSRMNavigation();
+
+
+
+    if(
+
+        route
+
+    ){
+
+
+        displayNavigationRoute(
+
+            route
+
+        );
+
+
+    }
+
+
+}
+
+
+
+
+
+/********************************/
+/******** ARRÊTER ***************/
+/********************************/
+
+
+function stopNavigationPage(){
+
+
+    navigationStarted =
+
+    false;
+
+
+
+    if(
+
+        navigationLayer
+
+    ){
+
+
+        navigationMap.removeLayer(
+
+            navigationLayer
+
+        );
+
+
+        navigationLayer = null;
+
+
+    }
+
+
+
+    document.getElementById(
+
+        "nextInstruction"
+
+    ).innerHTML =
+
+
+    "Navigation arrêtée.";
+
+
+}
+
+
+
+
+
+/********************************/
+/******** INITIALISATION ********/
+/********************************/
+
+
+window.addEventListener(
+
+    "load",
+
+    function(){
+
+
+        initializeNavigationMap();
+
+
+        startGPS();
+
+
+        setInterval(
+
+            updateNavigationInfo,
+
+            2000
+
+        );
+
+
+    }
+
+);
+
+
+</script>
+
+
+
+</div>
+
+
+</body>
+
+
+</html>

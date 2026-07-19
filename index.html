@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+
+<html lang="fr">
+
+
+<head>
+
+
+<meta charset="UTF-8">
+
+
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0">
+
+
+
+<title>
+
+ClemMaps
+
+</title>
+
+
+
+<meta name="theme-color"
+content="#202124">
+
+
+
+<meta name="description"
+content="ClemMaps - GPS nouvelle génération">
+
+
+
+<meta name="apple-mobile-web-app-capable"
+content="yes">
+
+
+
+<meta name="apple-mobile-web-app-status-bar-style"
+content="black">
+
+
+
+<meta name="apple-mobile-web-app-title"
+content="ClemMaps">
+
+
+
+
+
+<link rel="icon"
+href="assets/favicon.png">
+
+
+
+<link rel="apple-touch-icon"
+href="assets/favicon.png">
+
+
+
+
+
+<!-- GOOGLE FONTS -->
+
+
+<link rel="preconnect"
+href="https://fonts.googleapis.com">
+
+
+
+<link rel="preconnect"
+href="https://fonts.gstatic.com"
+crossorigin>
+
+
+
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap"
+rel="stylesheet">
+
+
+
+
+
+<!-- LEAFLET -->
+
+
+<link rel="stylesheet"
+href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+
+
+<script
+src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+
+</script>
+
+
+
+
+
+<!-- CSS -->
+
+
+<link rel="stylesheet"
+href="style.css">
+
+
+
+
+
+</head>
+
+
+
+<body>
+
+
+
+
+<!-- CARTE -->
+
+
+<div id="map"></div>
+
+
+
+
+
+
+<!-- BARRE DE RECHERCHE -->
+
+
+<div class="searchBox">
+
+
+
+<div class="topBar">
+
+
+
+<div class="logoContainer">
+
+
+
+<img
+
+src="assets/logo.png"
+
+id="logo"
+
+alt="ClemMaps"
+
+>
+
+
+
+<h1>
+
+ClemMaps
+
+</h1>
+
+
+
+</div>
+
+
+
+
+
+<button
+
+id="fullscreenButton"
+
+onclick="fullscreenMode()"
+
+>
+
+⛶
+
+</button>
+
+
+
+</div>
+
+<input
+
+id="destination"
+
+type="text"
+
+placeholder="Où allez-vous ?"
+
+autocomplete="off"
+
+>
+
+
+<button
+
+id="searchButton"
+
+onclick="searchDestination()"
+
+>
+
+🔍 Rechercher
+
+</button>
+
+
+
+</div>
+
+
+
+
+
+
+
+<!-- MENU ITINÉRAIRE -->
+
+
+<div id="routeMenu">
+
+</div>
+
+
+
+
+
+
+
+
+<!-- BOUTONS GPS -->
+
+
+<div class="rightButtons">
+
+
+
+<button
+
+id="gpsButton"
+
+onclick="getLocation()"
+
+title="Ma position"
+
+>
+
+📍
+
+</button>
+
+
+
+
+<button
+
+id="satelliteButton"
+
+onclick="openSatelliteMode()"
+
+title="Mode satellite"
+
+>
+
+🛰️
+
+</button>
+
+
+
+
+<button
+
+id="navigationButton"
+
+onclick="startNavigation()"
+
+title="Navigation"
+
+>
+
+🧭
+
+</button>
+
+
+
+
+<button
+
+id="settingsButton"
+
+onclick="openSettings()"
+
+title="Paramètres"
+
+>
+
+⚙️
+
+</button>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+<!-- MENU EXPLORER -->
+
+
+<div class="bottomMenu">
+
+
+
+<h2>
+
+Explorer les environs
+
+</h2>
+
+
+
+
+<div class="cardsContainer">
+
+
+
+<button
+
+onclick="searchCategory('restaurant')"
+
+>
+
+🍔 Restaurants
+
+</button>
+
+
+
+
+<button
+
+onclick="searchCategory('hotel')"
+
+>
+
+🏨 Hôtels
+
+</button>
+
+
+
+
+<button
+
+onclick="searchCategory('parking')"
+
+>
+
+🅿️ Parkings
+
+</button>
+
+
+
+
+<button
+
+onclick="searchCategory('fuel')"
+
+>
+
+⛽ Stations-service
+
+</button>
+
+
+
+
+<button
+
+onclick="searchCategory('charging')"
+
+>
+
+⚡ Bornes électriques
+
+</button>
+
+
+
+
+<button
+
+onclick="searchCategory('shop')"
+
+>
+
+🛒 Supermarchés
+
+</button>
+
+
+
+</div>
+
+
+
+</div>
+
+<!-- INFORMATIONS GPS -->
+
+
+<div class="speedContainer">
+
+
+<h2>
+
+0 km/h
+
+</h2>
+
+
+</div>
+
+
+
+
+
+
+<!-- CONTENEUR NOTIFICATIONS -->
+
+
+<div id="notificationsContainer">
+
+</div>
+
+
+
+
+
+
+<!-- MENU LONG APPUI CARTE -->
+
+
+<div id="mapMenu">
+
+</div>
+
+
+
+
+
+
+
+<!-- INFORMATIONS NAVIGATION -->
+
+
+<div id="navigationInformations">
+
+
+
+<div class="navigationCard">
+
+
+<h3>
+
+Temps restant
+
+</h3>
+
+
+<p id="remainingTime">
+
+--
+
+</p>
+
+
+</div>
+
+
+
+
+
+<div class="navigationCard">
+
+
+<h3>
+
+Distance restante
+
+</h3>
+
+
+<p id="remainingDistance">
+
+--
+
+</p>
+
+
+</div>
+
+
+
+
+
+<div class="navigationCard">
+
+
+<h3>
+
+Coût estimé
+
+</h3>
+
+
+<p id="travelCost">
+
+--
+
+</p>
+
+
+</div>
+
+
+
+
+
+<div class="navigationCard">
+
+
+<h3>
+
+Arrivée prévue
+
+</h3>
+
+
+<p id="arrivalTime">
+
+--
+
+</p>
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+<!-- INFORMATIONS VÉHICULE -->
+
+
+<div id="vehicleInformations">
+
+
+
+<div class="vehicleCard">
+
+
+<h3>
+
+Véhicule
+
+</h3>
+
+
+<p id="vehicleName">
+
+Aucun véhicule sélectionné
+
+</p>
+
+
+</div>
+
+
+
+
+
+<div class="vehicleCard">
+
+
+<h3>
+
+Autonomie restante
+
+</h3>
+
+
+<p id="vehicleRange">
+
+--
+
+</p>
+
+
+</div>
+
+
+
+
+
+<div class="vehicleCard">
+
+
+<h3>
+
+Carburant
+
+</h3>
+
+
+<p id="vehicleFuel">
+
+--
+
+</p>
+
+
+</div>
+
+
+
+
+
+<div class="vehicleCard">
+
+
+<h3>
+
+Pause recommandée
+
+</h3>
+
+
+<p id="recommendedStop">
+
+--
+
+</p>
+
+
+</div>
+
+
+
+</div>
+
+<!-- MENU MÉTÉO -->
+
+
+<div id="weatherInformations">
+
+
+
+<div class="weatherCard">
+
+
+<h3>
+
+Température
+
+</h3>
+
+
+<p id="weatherTemperature">
+
+--
+
+</p>
+
+
+</div>
+
+
+
+
+
+<div class="weatherCard">
+
+
+<h3>
+
+Conditions
+
+</h3>
+
+
+<p id="weatherState">
+
+--
+
+</p>
+
+
+</div>
+
+
+
+
+
+<div class="weatherCard">
+
+
+<h3>
+
+Vent
+
+</h3>
+
+
+<p id="weatherWind">
+
+--
+
+</p>
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+<!-- SCRIPT PRINCIPAL -->
+
+<script src="js/script.js"></script>
+
+
+
+<!-- INITIALISATION -->
+
+
+<script>
+
+
+window.addEventListener(
+
+"load",
+
+function(){
+
+
+if(
+
+typeof initializeClemMaps
+
+===
+
+"function"
+
+){
+
+
+initializeClemMaps();
+
+
+}
+
+
+}
+
+);
+
+
+</script>
+
+
+
+
+
+</body>
+
+
+</html>
