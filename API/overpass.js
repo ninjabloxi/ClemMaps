@@ -1,19 +1,6 @@
 /********************************/
-/*********** OVERPASS ***********/
+/******** OVERPASS API **********/
 /********************************/
-/*
-API Points d'intérêt
-
-OpenStreetMap Overpass
-
-Fonctions :
-- Restaurants
-- Hôtels
-- Parkings
-- Stations-service
-- Bornes électriques
-- Magasins
-*/
 
 
 const OVERPASS_URL =
@@ -23,46 +10,21 @@ const OVERPASS_URL =
 
 
 
-
 /********************************/
-/******** INITIALISATION ********/
-/********************************/
-
-
-function initializeOverpass(){
-
-
-    console.log(
-
-        "API Overpass prête."
-
-    );
-
-
-}
-
-
-
-
-
-/********************************/
-/******** RECHERCHE GÉNÉRALE ****/
+/******** REQUÊTE API ***********/
 /********************************/
 
 
-async function searchOverpass(
+async function executeOverpassQuery(
 
-
-    query
-
+query
 
 ){
-
 
     try{
 
 
-        let response =
+        const response =
 
         await fetch(
 
@@ -70,14 +32,9 @@ async function searchOverpass(
 
             {
 
-                method:
+                method:"POST",
 
-                "POST",
-
-
-                body:
-
-                query
+                body:query
 
             }
 
@@ -85,13 +42,14 @@ async function searchOverpass(
 
 
 
-        let data =
+        const data =
 
         await response.json();
 
 
 
-        return data.elements || [];
+        return data.elements;
+
 
 
     }
@@ -100,14 +58,13 @@ async function searchOverpass(
     catch(error){
 
 
-        console.log(
+        console.error(
 
             "Erreur Overpass :",
 
             error
 
         );
-
 
 
         return [];
@@ -123,416 +80,51 @@ async function searchOverpass(
 
 
 /********************************/
-/******** CRÉATION REQUÊTE ******/
+/******** FORMATAGE *************/
 /********************************/
 
 
-function createAroundQuery(
+function formatPlaces(places){
 
 
-    type,
+    return places.map(
 
-    latitude,
 
-    longitude,
+        place=>{
 
-    radius = 1000
 
-
-){
-
-
-    return `
-
-    [out:json];
-
-
-    (
-
-        node
-
-        ["amenity"="${type}"]
-
-        (around:${radius},
-
-        ${latitude},
-
-        ${longitude});
-
-
-    );
-
-
-    out;
-
-    `;
-
-
-}
-
-/********************************/
-/******** RESTAURANTS ***********/
-/********************************/
-
-
-async function searchRestaurants(
-
-
-    latitude,
-
-    longitude
-
-
-){
-
-
-    let query =
-
-    createAroundQuery(
-
-        "restaurant",
-
-        latitude,
-
-        longitude,
-
-        2000
-
-    );
-
-
-
-    return await searchOverpass(
-
-        query
-
-    );
-
-
-}
-
-
-
-
-
-/********************************/
-/************ HÔTELS ************/
-/********************************/
-
-
-async function searchHotels(
-
-
-    latitude,
-
-    longitude
-
-
-){
-
-
-    let query =
-
-    createAroundQuery(
-
-        "hotel",
-
-        latitude,
-
-        longitude,
-
-        5000
-
-    );
-
-
-
-    return await searchOverpass(
-
-        query
-
-    );
-
-
-}
-
-
-
-
-
-/********************************/
-/*********** PARKINGS ***********/
-/********************************/
-
-
-async function searchParking(
-
-
-    latitude,
-
-    longitude
-
-
-){
-
-
-    let query =
-
-    `
-
-    [out:json];
-
-
-    node
-
-    ["amenity"="parking"]
-
-    (around:3000,
-
-    ${latitude},
-
-    ${longitude});
-
-
-    out;
-
-
-    `;
-
-
-
-    return await searchOverpass(
-
-        query
-
-    );
-
-
-}
-
-
-
-
-
-/********************************/
-/******** STATIONS ESSENCE ******/
-/********************************/
-
-
-async function searchFuelStations(
-
-
-    latitude,
-
-    longitude
-
-
-){
-
-
-    let query =
-
-    `
-
-    [out:json];
-
-
-    node
-
-    ["amenity"="fuel"]
-
-    (around:5000,
-
-    ${latitude},
-
-    ${longitude});
-
-
-    out;
-
-
-    `;
-
-
-
-    return await searchOverpass(
-
-        query
-
-    );
-
-
-}
-
-
-
-
-
-/********************************/
-/******** BORNES ÉLECTRIQUES ****/
-/********************************/
-
-
-async function searchChargingStations(
-
-
-    latitude,
-
-    longitude
-
-
-){
-
-
-    let query =
-
-    `
-
-    [out:json];
-
-
-    node
-
-    ["amenity"="charging_station"]
-
-    (around:5000,
-
-    ${latitude},
-
-    ${longitude});
-
-
-    out;
-
-
-    `;
-
-
-
-    return await searchOverpass(
-
-        query
-
-    );
-
-
-}
-
-/********************************/
-/******** SUPERMARCHÉS **********/
-/********************************/
-
-
-async function searchShops(
-
-
-    latitude,
-
-    longitude
-
-
-){
-
-
-    let query =
-
-    `
-
-    [out:json];
-
-
-    (
-
-        node
-
-        ["shop"="supermarket"]
-
-        (around:5000,
-
-        ${latitude},
-
-        ${longitude});
-
-
-    );
-
-
-    out;
-
-
-    `;
-
-
-
-    return await searchOverpass(
-
-        query
-
-    );
-
-
-}
-
-
-
-
-
-/********************************/
-/******** FORMAT RÉSULTATS ******/
-/********************************/
-
-
-function formatPOIResults(
-
-
-    results
-
-
-){
-
-
-    return results.map(
-
-
-        function(place){
-
-
-            return {
-
-
-                id:
-
-                place.id,
+            return{
 
 
                 name:
 
-                place.tags?.name
+                place.tags?.name ||
 
-                ||
+                "Lieu inconnu",
 
-                "Lieu sans nom",
 
 
                 latitude:
 
-                place.lat,
+                place.lat ||
+
+                place.center?.lat,
+
 
 
                 longitude:
 
-                place.lon,
+                place.lon ||
+
+                place.center?.lon,
+
 
 
                 type:
 
-                place.tags?.amenity
+                place.tags?.amenity ||
 
-                ||
-
-                place.tags?.shop
-
-                ||
+                place.tags?.tourism ||
 
                 "unknown"
 
@@ -553,412 +145,249 @@ function formatPOIResults(
 
 
 /********************************/
-/******** MARQUEURS CARTE *******/
-/********************************/
-
-
-function addPOIMarker(
-
-
-    place
-
-
-){
-
-
-    if(
-
-        !map
-
-    ){
-
-        return;
-
-    }
-
-
-
-    let marker =
-
-    L.marker(
-
-        [
-
-            place.latitude,
-
-            place.longitude
-
-        ]
-
-    )
-
-    .addTo(
-
-        map
-
-    );
-
-
-
-    marker.bindPopup(
-
-        `
-
-        <b>
-
-        ${place.name}
-
-        </b>
-
-        <br>
-
-        ${place.type}
-
-        `
-
-    );
-
-
-
-    return marker;
-
-
-}
-
-
-
-
-
-/********************************/
-/******** AFFICHAGE MULTIPLE ****/
-/********************************/
-
-
-function displayPOIResults(
-
-
-    results
-
-
-){
-
-
-    let places =
-
-    formatPOIResults(
-
-        results
-
-    );
-
-
-
-    places.forEach(
-
-
-        function(place){
-
-
-            addPOIMarker(
-
-                place
-
-            );
-
-
-        }
-
-
-    );
-
-
-}
-
-/********************************/
-/******** RECHERCHE CLEMMAPS ****/
+/******** RECHERCHE *************/
 /********************************/
 
 
 async function searchNearby(
 
 
-    type,
+type,
 
-    latitude,
+latitude,
 
-    longitude
+longitude,
+
+radius = 5000
 
 
 ){
 
 
-    let results = [];
 
+let query = `
 
 
-    switch(type){
+[out:json];
 
+(
 
-        case "restaurant":
+node["${type}"]
 
+(around:${radius},
 
-            results =
+${latitude},
 
-            await searchRestaurants(
+${longitude});
 
-                latitude,
 
-                longitude
+way["${type}"]
 
-            );
+(around:${radius},
 
+${latitude},
 
-        break;
+${longitude});
 
 
+relation["${type}"]
 
+(around:${radius},
 
-        case "hotel":
+${latitude},
 
+${longitude});
 
-            results =
+);
 
-            await searchHotels(
+out center;
 
-                latitude,
 
-                longitude
+`;
 
-            );
 
 
-        break;
 
+let places =
 
+await executeOverpassQuery(
 
-
-        case "parking":
-
-
-            results =
-
-            await searchParking(
-
-                latitude,
-
-                longitude
-
-            );
-
-
-        break;
-
-
-
-
-        case "fuel":
-
-
-            results =
-
-            await searchFuelStations(
-
-                latitude,
-
-                longitude
-
-            );
-
-
-        break;
-
-
-
-
-        case "charging":
-
-
-            results =
-
-            await searchChargingStations(
-
-                latitude,
-
-                longitude
-
-            );
-
-
-        break;
-
-
-
-
-        case "shop":
-
-
-            results =
-
-            await searchShops(
-
-                latitude,
-
-                longitude
-
-            );
-
-
-        break;
-
-
-
-        default:
-
-
-            showNotification(
-
-                "Catégorie inconnue."
-
-            );
-
-
-            return;
-
-
-    }
-
-
-
-    if(
-
-        results.length === 0
-
-    ){
-
-
-        showNotification(
-
-            "Aucun résultat trouvé."
-
-        );
-
-
-        return;
-
-
-    }
-
-
-
-    displayPOIResults(
-
-        results
-
-    );
-
-
-
-    showNotification(
-
-        results.length
-
-        +
-
-        " lieu(x) trouvé(s)."
-
-    );
-
-
-}
-
-
-
-
-
-/********************************/
-/******** INITIALISATION ********/
-/********************************/
-
-
-function initializeOverpassAPI(){
-
-
-    initializeOverpass();
-
-
-
-    console.log(
-
-        "API Overpass chargée."
-
-    );
-
-
-}
-
-
-
-
-
-/********************************/
-/******** AUTO CHARGEMENT *******/
-/********************************/
-
-
-window.addEventListener(
-
-    "load",
-
-    function(){
-
-
-        initializeOverpassAPI();
-
-
-    }
+query
 
 );
 
 
 
+return formatPlaces(
+
+places
+
+);
+
+
+}
+
+
+
 
 
 /********************************/
-/******** FIN OVERPASS.JS *******/
+/******** RESTAURANTS ***********/
 /********************************/
 
-/*
 
-API Overpass :
-
-Fonctionnalités :
-
-- Restaurants ;
-- Hôtels ;
-- Parkings ;
-- Stations-service ;
-- Bornes électriques ;
-- Supermarchés ;
-- Points d'intérêt ;
-- Marqueurs Leaflet ;
-- Recherche autour GPS ;
-- Connexion Explorer ClemMaps.
+async function searchRestaurants(
 
 
-Architecture :
+lat,
 
-script.js
-      ↓
-searchCategory()
-      ↓
-overpass.js
-      ↓
-OpenStreetMap
-      ↓
-Points d'intérêt
-      ↓
-Leaflet
-      ↓
-Carte ClemMaps
+lon
 
-*/
+
+){
+
+
+return await searchNearby(
+
+'amenity"="restaurant',
+
+lat,
+
+lon
+
+);
+
+
+}
+
+
+
+
+
+/********************************/
+/******** HÔTELS ****************/
+/********************************/
+
+
+async function searchHotels(
+
+
+lat,
+
+lon
+
+
+){
+
+
+return await searchNearby(
+
+'tourism"="hotel',
+
+lat,
+
+lon
+
+);
+
+
+}
+
+
+
+
+
+/********************************/
+/******** PARKINGS **************/
+/********************************/
+
+
+async function searchParkings(
+
+
+lat,
+
+lon
+
+
+){
+
+
+return await searchNearby(
+
+'amenity"="parking',
+
+lat,
+
+lon
+
+);
+
+
+}
+
+
+
+
+
+/********************************/
+/******** STATIONS **************/
+/********************************/
+
+
+async function searchFuelStations(
+
+
+lat,
+
+lon
+
+
+){
+
+
+return await searchNearby(
+
+'amenity"="fuel',
+
+lat,
+
+lon
+
+);
+
+
+}
+
+
+
+
+
+/********************************/
+/******** BORNES ****************/
+/********************************/
+
+
+async function searchChargingStations(
+
+
+lat,
+
+lon
+
+
+){
+
+
+return await searchNearby(
+
+'amenity"="charging_station',
+
+lat,
+
+lon
+
+);
+
+
+}
