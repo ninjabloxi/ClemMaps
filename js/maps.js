@@ -1,16 +1,22 @@
+"use strict";
+
+
 /********************************/
-/************* CARTE ************/
+/*********** VARIABLES **********/
 /********************************/
-
-let currentMapMode =
-
-"standard";
-
-
-let currentZoom = 16;
 
 
 let mapInitialized = false;
+
+let currentZoom = 16;
+
+let currentMapMode = "standard";
+
+let autoFollowMap = true;
+
+let navigationZoom = 18;
+
+let routeLayer = null;
 
 
 
@@ -32,12 +38,9 @@ function initializeMaps(){
     mapInitialized = true;
 
 
-    applyMapMode();
-
-
     console.log(
 
-        "Module carte chargé."
+        "Carte chargée."
 
     );
 
@@ -49,51 +52,25 @@ function initializeMaps(){
 
 
 /********************************/
-/*********** MODE CARTE *********/
+/*********** INFORMATIONS *******/
 /********************************/
 
 
-function setMapMode(mode){
+function isMapInitialized(){
 
 
-    currentMapMode =
-
-    mode;
+    return mapInitialized;
 
 
-    mapsSettings.mapMode =
-
-    mode;
+}
 
 
 
-    localStorage.setItem(
 
-        "clemmapsMapsSettings",
-
-        JSON.stringify(
-
-            mapsSettings
-
-        )
-
-    );
+function getCurrentZoom(){
 
 
-
-    applyMapMode();
-
-
-
-    showNotification(
-
-        "Mode " +
-
-        mode +
-
-        " activé."
-
-    );
+    return currentZoom;
 
 
 }
@@ -110,18 +87,14 @@ function setMapMode(mode){
 function zoomIn(){
 
 
-    if(!map){
+    if(map){
 
-        return;
+        map.zoomIn();
 
     }
 
 
-    map.zoomIn();
-
-
 }
-
 
 
 
@@ -129,14 +102,11 @@ function zoomIn(){
 function zoomOut(){
 
 
-    if(!map){
+    if(map){
 
-        return;
+        map.zoomOut();
 
     }
-
-
-    map.zoomOut();
 
 
 }
@@ -146,22 +116,18 @@ function zoomOut(){
 
 
 /********************************/
-/******** POSITION UTILISATEUR **/
+/*********** CENTRAGE GPS *******/
 /********************************/
 
 
 function centerOnUser(){
 
 
-    if(!userMarker){
+    if(
 
+        !hasGPSPosition()
 
-        showNotification(
-
-            "Position inconnue."
-
-        );
-
+    ){
 
         return;
 
@@ -179,24 +145,7 @@ function centerOnUser(){
 
         ],
 
-        18
-
-    );
-
-
-}
-
-/********************************/
-/******** MODES DE CARTE ********/
-/********************************/
-
-
-function openSatelliteMode(){
-
-
-    setMapMode(
-
-        "satellite"
+        navigationZoom
 
     );
 
@@ -204,6 +153,493 @@ function openSatelliteMode(){
 }
 
 
+
+
+
+/********************************/
+/******** SUIVI NAVIGATION ******/
+/********************************/
+
+
+function updateMapPosition(){
+
+
+    if(
+
+        !navigationStarted ||
+
+        !autoFollowMap ||
+
+        !hasGPSPosition()
+
+    ){
+
+        return;
+
+    }
+
+
+
+    centerOnUser();
+
+
+}
+
+/********************************/
+/********** TRACÉ BLEU **********/
+/********************************/
+
+
+function displayRouteLayer(
+
+    layer
+
+){
+
+
+    clearRouteLayer();
+
+
+    routeLayer = layer;
+
+
+}
+
+
+
+
+function clearRouteLayer(){
+
+
+    if(
+
+        routeLayer &&
+
+        map
+
+    ){
+
+        map.removeLayer(
+
+            routeLayer
+
+        );
+
+
+        routeLayer = null;
+
+    }
+
+
+}
+
+
+
+
+function hasRouteLayer(){
+
+
+    return (
+
+        routeLayer !== null
+
+    );
+
+
+}
+
+
+
+
+
+/********************************/
+/*********** ZOOM AUTO **********/
+/********************************/
+
+
+function updateNavigationZoom(){
+
+
+    if(
+
+        !navigationStarted ||
+
+        !map
+
+    ){
+
+        return;
+
+    }
+
+
+
+    map.setZoom(
+
+        navigationZoom
+
+    );
+
+
+}
+
+
+
+
+
+/********************************/
+/*********** MODE CARTE *********/
+/********************************/
+
+
+function setMapMode(
+
+    mode
+
+){
+
+
+    currentMapMode =
+
+    mode;
+
+
+    applyMapMode();
+
+
+}
+
+
+
+
+
+function getMapMode(){
+
+
+    return currentMapMode;
+
+
+}
+
+
+
+
+
+/********************************/
+/*********** COUCHES ************/
+/********************************/
+
+
+function refreshMapLayer(){
+
+
+    if(
+
+        !mapInitialized
+
+    ){
+
+        return;
+
+    }
+
+
+
+    applyMapMode();
+
+
+}
+
+
+
+
+
+/********************************/
+/*********** ACTUALISATION ******/
+/********************************/
+
+
+function refreshMap(){
+
+
+    if(
+
+        !map
+
+    ){
+
+        return;
+
+    }
+
+
+
+    currentZoom =
+
+    map.getZoom();
+
+
+
+    updateNavigationZoom();
+
+
+}
+
+
+
+
+
+/********************************/
+/*********** INFORMATIONS *******/
+/********************************/
+
+
+function getMapsInformations(){
+
+
+    return{
+
+        initialized:
+
+        mapInitialized,
+
+
+
+        zoom:
+
+        currentZoom,
+
+
+
+        mode:
+
+        currentMapMode,
+
+
+
+        navigation:
+
+        navigationStarted,
+
+
+
+        route:
+
+        hasRouteLayer()
+
+
+    };
+
+
+}
+
+/********************************/
+/******** MODE PLEIN ÉCRAN ******/
+/********************************/
+
+
+function openMapFullscreen(){
+
+
+    if(
+
+        !document.fullscreenElement
+
+    ){
+
+        document.documentElement
+
+        .requestFullscreen();
+
+    }
+
+    else{
+
+        document.exitFullscreen();
+
+    }
+
+
+}
+
+
+
+
+
+/********************************/
+/*********** VITESSE ************/
+/********************************/
+
+
+function displayCurrentSpeed(){
+
+
+    const container =
+
+    document.querySelector(
+
+        ".speedContainer"
+
+    );
+
+
+    if(
+
+        !container
+
+    ){
+
+        return;
+
+    }
+
+
+
+    container.style.display =
+
+    "block";
+
+
+
+    container.innerHTML =
+
+    currentSpeed +
+
+    " km/h";
+
+
+}
+
+
+
+
+
+/********************************/
+/******** LIMITATION VITESSE ****/
+/********************************/
+
+
+function displaySpeedLimit(
+
+    limit = "--"
+
+){
+
+
+    const container =
+
+    document.getElementById(
+
+        "speedLimit"
+
+    );
+
+
+    if(
+
+        !container
+
+    ){
+
+        return;
+
+    }
+
+
+
+    container.innerHTML =
+
+    limit +
+
+    " km/h";
+
+
+}
+
+
+
+
+
+/********************************/
+/******** MODE NAVIGATION *******/
+/********************************/
+
+
+function enableNavigationMapMode(){
+
+
+    navigationZoom = 18;
+
+
+    autoFollowMap = true;
+
+
+}
+
+
+
+
+
+function disableNavigationMapMode(){
+
+
+    navigationZoom = 16;
+
+
+}
+
+
+
+
+
+/********************************/
+/*********** BOUSSOLE ***********/
+/********************************/
+
+
+let compassEnabled = true;
+
+
+
+function enableCompass(){
+
+
+    compassEnabled = true;
+
+
+}
+
+
+
+
+function disableCompass(){
+
+
+    compassEnabled = false;
+
+
+}
+
+
+
+
+
+/********************************/
+/*********** INFORMATIONS *******/
+/********************************/
+
+
+function isCompassEnabled(){
+
+
+    return compassEnabled;
+
+
+}
+
+/********************************/
+/*********** MODE CARTE *********/
+/********************************/
 
 
 function openStandardMode(){
@@ -212,6 +648,21 @@ function openStandardMode(){
     setMapMode(
 
         "standard"
+
+    );
+
+
+}
+
+
+
+
+function openSatelliteMode(){
+
+
+    setMapMode(
+
+        "satellite"
 
     );
 
@@ -251,12 +702,24 @@ function openNightMode(){
 
 
 
-function openTransportMode(){
+
+/********************************/
+/*********** PARAMÈTRES *********/
+/********************************/
 
 
-    setMapMode(
+function saveMapsSettings(){
 
-        "transport"
+
+    localStorage.setItem(
+
+        "clemmapsMapsSettings",
+
+        JSON.stringify(
+
+            mapsSettings
+
+        )
 
     );
 
@@ -266,87 +729,32 @@ function openTransportMode(){
 
 
 
-
-/********************************/
-/******** CHANGEMENT COUCHE *****/
-/********************************/
+function loadMapsSettings(){
 
 
-function changeMapLayer(){
+    const data =
+
+    localStorage.getItem(
+
+        "clemmapsMapsSettings"
+
+    );
+
 
 
     if(
 
-        !mapInitialized
+        data
 
     ){
 
-        return;
+        mapsSettings =
 
-    }
+        JSON.parse(
 
+            data
 
-
-    applyMapMode();
-
-
-}
-
-
-
-
-
-/********************************/
-/******** ACTUALISATION *********/
-/********************************/
-
-
-function refreshMap(){
-
-
-    if(
-
-        !map
-
-    ){
-
-        return;
-
-    }
-
-
-
-    currentZoom =
-
-    map.getZoom();
-
-
-
-}
-
-/********************************/
-/******** MODE PLEIN ÉCRAN ******/
-/********************************/
-
-
-function openMapFullscreen(){
-
-
-    if(!document.fullscreenElement){
-
-
-        document.documentElement
-
-        .requestFullscreen();
-
-
-    }
-
-    else{
-
-
-        document.exitFullscreen();
-
+        );
 
     }
 
@@ -358,7 +766,7 @@ function openMapFullscreen(){
 
 
 /********************************/
-/******** AFFICHAGE POI *********/
+/*********** POINTS D'INTÉRÊT ***/
 /********************************/
 
 
@@ -370,9 +778,11 @@ function showPointsOfInterest(){
     true;
 
 
+
     mapsSettings.hotels =
 
     true;
+
 
 
     mapsSettings.parking =
@@ -380,9 +790,11 @@ function showPointsOfInterest(){
     true;
 
 
+
     mapsSettings.gas =
 
     true;
+
 
 
     mapsSettings.electric =
@@ -399,7 +811,6 @@ function showPointsOfInterest(){
 
 
 
-
 function hidePointsOfInterest(){
 
 
@@ -408,9 +819,11 @@ function hidePointsOfInterest(){
     false;
 
 
+
     mapsSettings.hotels =
 
     false;
+
 
 
     mapsSettings.parking =
@@ -418,9 +831,11 @@ function hidePointsOfInterest(){
     false;
 
 
+
     mapsSettings.gas =
 
     false;
+
 
 
     mapsSettings.electric =
@@ -451,20 +866,10 @@ function enableTraffic(){
     true;
 
 
-
     saveMapsSettings();
 
 
-
-    showNotification(
-
-        "Trafic activé."
-
-    );
-
-
 }
-
 
 
 
@@ -477,518 +882,7 @@ function disableTraffic(){
     false;
 
 
-
     saveMapsSettings();
-
-
-
-    showNotification(
-
-        "Trafic désactivé."
-
-    );
-
-
-}
-
-
-
-
-
-/********************************/
-/*********** BÂTIMENTS **********/
-/********************************/
-
-
-function enableBuildings(){
-
-
-    mapsSettings.buildings =
-
-    true;
-
-
-
-    saveMapsSettings();
-
-
-}
-
-
-
-
-
-function disableBuildings(){
-
-
-    mapsSettings.buildings =
-
-    false;
-
-
-
-    saveMapsSettings();
-
-
-}
-
-
-
-
-
-/********************************/
-/******** SAUVEGARDE ************/
-/********************************/
-
-
-function saveMapsSettings(){
-
-
-    localStorage.setItem(
-
-        "clemmapsMapsSettings",
-
-        JSON.stringify(
-
-            mapsSettings
-
-        )
-
-    );
-
-
-}
-
-/********************************/
-/******** ORIENTATION GPS *******/
-/********************************/
-
-
-let autoFollowMap = true;
-
-let lockMapZoom = false;
-
-let navigationZoom = 18;
-
-
-
-function enableAutoFollow(){
-
-
-    autoFollowMap = true;
-
-
-
-    showNotification(
-
-        "Suivi automatique activé."
-
-    );
-
-
-}
-
-
-
-
-function disableAutoFollow(){
-
-
-    autoFollowMap = false;
-
-
-
-    showNotification(
-
-        "Suivi automatique désactivé."
-
-    );
-
-
-}
-
-
-
-
-
-/********************************/
-/******** VERROUILLAGE ZOOM *****/
-/********************************/
-
-
-function enableZoomLock(){
-
-
-    lockMapZoom = true;
-
-
-
-    showNotification(
-
-        "Zoom verrouillé."
-
-    );
-
-
-}
-
-
-
-
-function disableZoomLock(){
-
-
-    lockMapZoom = false;
-
-
-
-    showNotification(
-
-        "Zoom déverrouillé."
-
-    );
-
-
-}
-
-
-
-
-
-/********************************/
-/******** RECENTRAGE GPS ********/
-/********************************/
-
-
-function updateMapPosition(){
-
-
-    if(
-
-        !autoFollowMap ||
-
-        !map ||
-
-        !navigationStarted
-
-    ){
-
-        return;
-
-    }
-
-
-
-    map.flyTo(
-
-        [
-
-            currentPosition.latitude,
-
-            currentPosition.longitude
-
-        ],
-
-        navigationZoom,
-
-        {
-
-            duration:1
-
-        }
-
-    );
-
-
-}
-
-
-
-
-
-/********************************/
-/*********** ZOOM AUTO **********/
-/********************************/
-
-
-function updateNavigationZoom(){
-
-
-    if(
-
-        !map ||
-
-        !lockMapZoom
-
-    ){
-
-        return;
-
-    }
-
-
-
-    map.setZoom(
-
-        navigationZoom
-
-    );
-
-
-}
-
-
-
-
-
-/********************************/
-/******** ACTUALISATION CARTE ***/
-/********************************/
-
-
-function refreshMapInformations(){
-
-
-    if(!map){
-
-        return;
-
-    }
-
-
-
-    updateMapPosition();
-
-
-    updateNavigationZoom();
-
-
-    refreshMap();
-
-
-}
-
-/********************************/
-/*********** BOUSSOLE ***********/
-/********************************/
-
-
-let compassEnabled = true;
-
-
-
-function enableCompass(){
-
-
-    compassEnabled = true;
-
-
-
-    showNotification(
-
-        "Boussole activée."
-
-    );
-
-
-}
-
-
-
-
-function disableCompass(){
-
-
-    compassEnabled = false;
-
-
-
-    showNotification(
-
-        "Boussole désactivée."
-
-    );
-
-
-}
-
-
-
-
-
-/********************************/
-/******** VITESSE ACTUELLE ******/
-/********************************/
-
-
-function displayCurrentSpeed(){
-
-
-    let container =
-
-    document.querySelector(
-
-        ".speedContainer"
-
-    );
-
-
-
-    if(!container){
-
-        return;
-
-    }
-
-
-
-    container.style.display =
-
-    "block";
-
-
-
-    let title =
-
-    container.querySelector(
-
-        "h2"
-
-    );
-
-
-
-    if(title){
-
-
-        title.innerHTML =
-
-        currentSpeed +
-
-        " km/h";
-
-
-    }
-
-
-}
-
-
-
-
-
-/********************************/
-/******** LIMITATIONS ***********/
-/********************************/
-
-
-function displaySpeedLimit(
-
-
-    limit = "--"
-
-
-){
-
-
-
-    let container =
-
-    document.getElementById(
-
-        "speedLimit"
-
-    );
-
-
-
-    if(!container){
-
-        return;
-
-    }
-
-
-
-    container.innerHTML =
-
-    limit +
-
-    " km/h";
-
-
-}
-
-
-
-
-
-/********************************/
-/*********** MODE GPS ***********/
-/********************************/
-
-
-function enableNavigationMapMode(){
-
-
-    navigationZoom = 18;
-
-
-    autoFollowMap = true;
-
-
-    lockMapZoom = true;
-
-
-}
-
-
-
-
-
-function disableNavigationMapMode(){
-
-
-    navigationZoom = 16;
-
-
-    lockMapZoom = false;
-
-
-}
-
-
-
-
-
-/********************************/
-/*********** MODE 3D ************/
-/********************************/
-
-
-function enable3DMode(){
-
-
-    showNotification(
-
-        "Mode 3D bientôt disponible."
-
-    );
-
-
-}
-
-
-
-
-function disable3DMode(){
-
-
-    showNotification(
-
-        "Retour au mode classique."
-
-    );
 
 
 }
@@ -1001,14 +895,21 @@ function disable3DMode(){
 function synchronizeMaps(){
 
 
-    if(!map){
+    if(
+
+        !mapInitialized
+
+    ){
 
         return;
 
     }
 
 
-    refreshMapInformations();
+    refreshMap();
+
+
+    updateMapPosition();
 
 
     displayCurrentSpeed();
@@ -1021,14 +922,18 @@ function synchronizeMaps(){
 
 
 /********************************/
-/*********** REDIMENSION ********/
+/******** REDIMENSIONNEMENT *****/
 /********************************/
 
 
 function resizeMap(){
 
 
-    if(!map){
+    if(
+
+        !map
+
+    ){
 
         return;
 
@@ -1037,7 +942,7 @@ function resizeMap(){
 
     setTimeout(
 
-        function(){
+        ()=>{
 
 
             map.invalidateSize();
@@ -1057,13 +962,95 @@ function resizeMap(){
 
 
 /********************************/
-/*********** ACTUALISATION ******/
+/******** ACTUALISATION *********/
+/********************************/
+
+
+function refreshMapsModule(){
+
+
+    if(
+
+        !mapInitialized
+
+    ){
+
+        return;
+
+    }
+
+
+    synchronizeMaps();
+
+
+}
+
+
+
+
+
+/********************************/
+/******** OPTIMISATION GPS ******/
+/********************************/
+
+
+function optimizeMap(){
+
+
+    if(
+
+        !navigationStarted
+
+    ){
+
+        return;
+
+    }
+
+
+    if(
+
+        currentSpeed >= 110
+
+    ){
+
+        navigationZoom = 16;
+
+    }
+
+
+    else if(
+
+        currentSpeed >= 70
+
+    ){
+
+        navigationZoom = 17;
+
+    }
+
+
+    else{
+
+        navigationZoom = 18;
+
+    }
+
+
+}
+
+
+
+
+
+/********************************/
+/*********** GPS LIVE ***********/
 /********************************/
 
 
 setInterval(
 
-    function(){
+    ()=>{
 
 
         if(
@@ -1072,8 +1059,10 @@ setInterval(
 
         ){
 
+            optimizeMap();
 
-            synchronizeMaps();
+
+            refreshMapsModule();
 
 
         }
@@ -1081,13 +1070,33 @@ setInterval(
 
     },
 
-    2000
+    3000
 
 );
 
 
 
 
+
+/********************************/
+/*********** ÉVÈNEMENTS *********/
+/********************************/
+
+
+window.addEventListener(
+
+    "resize",
+
+    ()=>{
+
+
+        resizeMap();
+
+
+    }
+
+
+);
 
 /********************************/
 /******** INITIALISATION ********/
@@ -1098,6 +1107,9 @@ function initializeMapsModule(){
 
 
     initializeMaps();
+
+
+    loadMapsSettings();
 
 
     resizeMap();
@@ -1118,6 +1130,93 @@ function initializeMapsModule(){
 
 
 /********************************/
+/*********** DIAGNOSTICS ********/
+/********************************/
+
+
+function getMapsDiagnostics(){
+
+
+    return{
+
+        initialized:
+
+        mapInitialized,
+
+
+
+        zoom:
+
+        currentZoom,
+
+
+
+        mode:
+
+        currentMapMode,
+
+
+
+        autoFollow:
+
+        autoFollowMap,
+
+
+
+        navigationZoom:
+
+        navigationZoom
+
+
+    };
+
+
+}
+
+
+
+
+
+/********************************/
+/*********** EXPORTS ************/
+/********************************/
+
+
+window.ClemMapsMaps = {
+
+
+    center:centerOnUser,
+
+
+
+    refresh:refreshMap,
+
+
+
+    resize:resizeMap,
+
+
+
+    diagnostics:
+
+    getMapsDiagnostics,
+
+
+
+    zoomIn,
+
+
+
+    zoomOut
+
+
+};
+
+
+
+
+
+/********************************/
 /******** AUTO CHARGEMENT *******/
 /********************************/
 
@@ -1126,7 +1225,7 @@ window.addEventListener(
 
     "load",
 
-    function(){
+    ()=>{
 
 
         initializeMapsModule();
@@ -1134,21 +1233,6 @@ window.addEventListener(
 
     }
 
-);
-
-
-
-window.addEventListener(
-
-    "resize",
-
-    function(){
-
-
-        resizeMap();
-
-
-    }
 
 );
 
@@ -1157,52 +1241,40 @@ window.addEventListener(
 
 
 /********************************/
-/******** FIN MAPS.JS ***********/
+/************* FIN **************/
 /********************************/
 
-/*
 
-Fonctionnalités :
+console.log(
 
-- Carte Leaflet ;
-- Mode standard ;
-- Mode satellite ;
-- Mode terrain ;
-- Mode nuit ;
-- Mode transport ;
-- Plein écran ;
-- Zoom intelligent ;
-- Suivi GPS automatique ;
-- Verrouillage du zoom ;
-- Affichage de la vitesse ;
-- Boussole ;
-- Affichage des POI ;
-- Gestion du trafic ;
-- Gestion des bâtiments ;
-- Synchronisation GPS ;
-- Compatible :
-    - iPad ;
-    - iPhone ;
-    - Android ;
-    - PC ;
-    - Vercel.
+    "--------------------------------"
 
-Architecture :
+);
 
-index.html
-      ↓
- js/script.js
-      ↓
-   maps.js
-      ↓
-    gps.js
-      ↓
-navigation.js
-      ↓
- search.js
-      ↓
-   Leaflet
-      ↓
-OpenStreetMap
 
-*/
+console.log(
+
+    "ClemMaps Maps"
+
+);
+
+
+console.log(
+
+    "Version 1.0"
+
+);
+
+
+console.log(
+
+    "Carte prête."
+
+);
+
+
+console.log(
+
+    "--------------------------------"
+
+);
