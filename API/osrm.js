@@ -1,64 +1,37 @@
 /********************************/
-/************** OSRM ************/
+/************* OSRM *************/
 /********************************/
-/*
-API Calcul itinéraire
-
-Open Source Routing Machine
-
-Fonctions :
-- Calcul trajet voiture
-- Distance
-- Durée
-- Étapes navigation
-- Recalcul itinéraire
-*/
 
 
 const OSRM_URL =
 
-"https://router.project-osrm.org";
+"https://router.project-osrm.org/route/v1";
 
 
 
+let currentRoute = null;
 
+let currentSteps = [];
 
-/********************************/
-/******** INITIALISATION ********/
-/********************************/
+let currentDistance = 0;
 
-
-function initializeOSRM(){
-
-
-    console.log(
-
-        "API OSRM prête."
-
-    );
-
-
-}
-
+let currentDuration = 0;
 
 
 
 
 /********************************/
-/******** CALCUL ROUTE **********/
+/******** ITINÉRAIRE ************/
 /********************************/
 
 
-async function calculateOSRMRoute(
+async function calculateRoute(
 
 
-    startLat,
-
-    startLon,
-
-    endLat,
-
-    endLon
+startLat,
+startLon,
+endLat,
+endLon
 
 
 ){
@@ -70,44 +43,17 @@ async function calculateOSRMRoute(
         let url =
 
 
-        OSRM_URL
+        `${OSRM_URL}/car/`+
 
-        +
+        `${startLon},${startLat};`+
 
-        "/route/v1/driving/"
+        `${endLon},${endLat}`+
 
-        +
+        `?overview=full`+
 
-        startLon
+        `&steps=true`+
 
-        +
-
-        ","
-
-        +
-
-        startLat
-
-        +
-
-        ";"
-
-        +
-
-        endLon
-
-        +
-
-        ","
-
-        +
-
-        endLat
-
-        +
-
-        "?overview=full&steps=true&geometries=geojson";
-
+        `&geometries=geojson`;
 
 
 
@@ -127,7 +73,46 @@ async function calculateOSRMRoute(
 
 
 
-        return data;
+
+        if(
+
+            data.code !== "Ok"
+
+        ){
+
+            return null;
+
+        }
+
+
+
+
+        currentRoute =
+
+        data.routes[0];
+
+
+
+        currentDistance =
+
+        currentRoute.distance;
+
+
+
+        currentDuration =
+
+        currentRoute.duration;
+
+
+
+        currentSteps =
+
+        currentRoute.legs[0].steps;
+
+
+
+        return currentRoute;
+
 
 
     }
@@ -136,16 +121,13 @@ async function calculateOSRMRoute(
     catch(error){
 
 
-        console.log(
-
-            "Erreur OSRM :",
+        console.error(
 
             error
 
         );
 
 
-
         return null;
 
 
@@ -159,115 +141,14 @@ async function calculateOSRMRoute(
 
 
 /********************************/
-/******** PREMIER TRAJET ********/
+/******** DISTANCE **************/
 /********************************/
 
 
-function getBestRoute(
+function getRouteDistance(){
 
 
-    data
-
-
-){
-
-
-    if(
-
-        !data ||
-
-        !data.routes ||
-
-        data.routes.length === 0
-
-    ){
-
-
-        return null;
-
-
-    }
-
-
-
-    return data.routes[0];
-
-
-}
-
-/********************************/
-/******** INFORMATIONS TRAJET ***/
-/********************************/
-
-
-function getRouteDistance(
-
-
-    route
-
-
-){
-
-
-    if(
-
-        !route
-
-    ){
-
-        return 0;
-
-    }
-
-
-
-    return Math.round(
-
-        route.distance
-
-        /
-
-        1000
-
-    );
-
-
-}
-
-
-
-
-
-function getRouteDuration(
-
-
-    route
-
-
-){
-
-
-    if(
-
-        !route
-
-    ){
-
-        return 0;
-
-    }
-
-
-
-    return Math.round(
-
-        route.duration
-
-        /
-
-        60
-
-    );
+    return currentDistance;
 
 
 }
@@ -277,72 +158,14 @@ function getRouteDuration(
 
 
 /********************************/
-/******** FORMAT DURÉE **********/
+/******** TEMPS *****************/
 /********************************/
 
 
-function formatDuration(
+function getRouteDuration(){
 
 
-    minutes
-
-
-){
-
-
-    if(
-
-        minutes < 60
-
-    ){
-
-
-        return minutes
-
-        +
-
-        " min";
-
-
-    }
-
-
-
-    let hours =
-
-    Math.floor(
-
-        minutes / 60
-
-    );
-
-
-
-    let remaining =
-
-    minutes %
-
-    60;
-
-
-
-    return (
-
-        hours
-
-        +
-
-        " h "
-
-        +
-
-        remaining
-
-        +
-
-        " min"
-
-    );
+    return currentDuration;
 
 
 }
@@ -352,14 +175,31 @@ function formatDuration(
 
 
 /********************************/
-/******** FORMAT DISTANCE ********/
+/******** ÉTAPES ****************/
+/********************************/
+
+
+function getNavigationSteps(){
+
+
+    return currentSteps;
+
+
+}
+
+
+
+
+
+/********************************/
+/******** FORMAT KM *************/
 /********************************/
 
 
 function formatDistance(
 
 
-    kilometers
+meters
 
 
 ){
@@ -367,18 +207,111 @@ function formatDistance(
 
     if(
 
-        kilometers >= 100
+
+        meters >= 1000
+
 
     ){
 
 
         return (
 
-            kilometers
+            meters / 1000
 
-            +
+        )
 
-            " km"
+        .toFixed(1)
+
+        +
+
+        " km";
+
+
+    }
+
+
+
+    return (
+
+        Math.round(
+
+            meters
+
+        )
+
+        +
+
+        " m"
+
+    );
+
+
+}
+
+
+
+
+
+/********************************/
+/******** FORMAT TEMPS **********/
+/********************************/
+
+
+function formatDuration(
+
+
+seconds
+
+
+){
+
+
+    let minutes =
+
+    Math.round(
+
+        seconds / 60
+
+    );
+
+
+
+    if(
+
+
+        minutes >= 60
+
+
+    ){
+
+
+        let hours =
+
+        Math.floor(
+
+            minutes / 60
+
+        );
+
+
+
+        let rest =
+
+        minutes % 60;
+
+
+
+        return (
+
+
+            hours +
+
+            " h " +
+
+            rest +
+
+            " min"
+
 
         );
 
@@ -389,11 +322,11 @@ function formatDistance(
 
     return (
 
-        kilometers.toFixed(1)
 
-        +
+        minutes +
 
-        " km"
+        " min"
+
 
     );
 
@@ -405,14 +338,14 @@ function formatDistance(
 
 
 /********************************/
-/******** ÉTAPES NAVIGATION *****/
+/******** TRACÉ BLEU ************/
 /********************************/
 
 
-function getNavigationSteps(
+function displayRoute(
 
 
-    route
+map
 
 
 ){
@@ -420,274 +353,7 @@ function getNavigationSteps(
 
     if(
 
-        !route ||
-
-        !route.legs
-
-    ){
-
-        return [];
-
-    }
-
-
-
-    return route.legs[0].steps;
-
-
-}
-
-
-
-
-
-/********************************/
-/******** PREMIÈRE INSTRUCTION **/
-/********************************/
-
-
-function getFirstInstruction(
-
-
-    route
-
-
-){
-
-
-    let steps =
-
-    getNavigationSteps(
-
-        route
-
-    );
-
-
-
-    if(
-
-        steps.length === 0
-
-    ){
-
-        return null;
-
-    }
-
-
-
-    return steps[0].maneuver;
-
-
-}
-
-/********************************/
-/******** INSTRUCTIONS **********/
-/********************************/
-
-
-function formatNavigationInstruction(
-
-
-    step
-
-
-){
-
-
-    if(
-
-        !step
-
-    ){
-
-        return "";
-
-    }
-
-
-
-    let type =
-
-    step.maneuver.type;
-
-
-
-    let modifier =
-
-    step.maneuver.modifier || "";
-
-
-
-    let road =
-
-    step.name || "la route";
-
-
-
-    return (
-
-        translateManeuver(
-
-            type,
-
-            modifier
-
-        )
-
-        +
-
-        " sur "
-
-        +
-
-        road
-
-    );
-
-
-}
-
-
-
-
-
-/********************************/
-/******** TRADUCTION ************/
-/********************************/
-
-
-function translateManeuver(
-
-
-    type,
-
-    modifier
-
-
-){
-
-
-
-    if(
-
-        type === "turn"
-
-    ){
-
-
-
-        if(
-
-            modifier === "left"
-
-        ){
-
-
-            return "Tournez à gauche";
-
-
-        }
-
-
-
-        if(
-
-            modifier === "right"
-
-        ){
-
-
-            return "Tournez à droite";
-
-
-        }
-
-
-
-        return "Tournez";
-
-
-    }
-
-
-
-
-    if(
-
-        type === "depart"
-
-    ){
-
-
-        return "Démarrez";
-
-
-    }
-
-
-
-
-
-    if(
-
-        type === "arrive"
-
-    ){
-
-
-        return "Vous êtes arrivé";
-
-
-    }
-
-
-
-
-
-    if(
-
-        type === "roundabout"
-
-    ){
-
-
-        return "Prenez le rond-point";
-
-
-    }
-
-
-
-
-
-    return "Continuez";
-
-
-}
-
-
-
-
-
-/********************************/
-/******** SUIVI TRAJET **********/
-/********************************/
-
-
-function followOSRMRoute(
-
-
-    route
-
-
-){
-
-
-    if(
-
-        !route
+        !currentRoute
 
     ){
 
@@ -697,20 +363,69 @@ function followOSRMRoute(
 
 
 
-    let steps =
+    if(
 
-    getNavigationSteps(
+        window.routeLayer
 
-        route
+    ){
+
+
+        map.removeLayer(
+
+            window.routeLayer
+
+        );
+
+
+    }
+
+
+
+
+    window.routeLayer =
+
+
+    L.geoJSON(
+
+        currentRoute.geometry,
+
+        {
+
+            style:{
+
+
+                color:"#4285F4",
+
+                weight:8,
+
+                opacity:1
+
+
+            }
+
+
+        }
+
+    )
+
+    .addTo(
+
+        map
 
     );
 
 
 
-    window.currentNavigationSteps =
 
-    steps;
+    map.fitBounds(
 
+
+        window.routeLayer
+
+        .getBounds()
+
+
+    );
 
 
 }
@@ -724,285 +439,29 @@ function followOSRMRoute(
 /********************************/
 
 
-async function recalculateRoute(){
+async function recalculateRoute(
 
 
-    if(
+startLat,
+startLon,
+endLat,
+endLon
 
-        !destinationMarker ||
 
-        !userMarker
-
-    ){
-
-        return null;
-
-    }
+){
 
 
 
-    let start =
-
-    userMarker.getLatLng();
+    return await calculateRoute(
 
 
+        startLat,
+        startLon,
+        endLat,
+        endLon
 
-    let end =
-
-    destinationMarker.getLatLng();
-
-
-
-    return await calculateOSRMRoute(
-
-        start.lat,
-
-        start.lng,
-
-        end.lat,
-
-        end.lng
 
     );
 
 
 }
-
-/********************************/
-/******** SAUVEGARDE TRAJET ******/
-/********************************/
-
-
-function saveLastRoute(route){
-
-
-    if(
-
-        !route
-
-    ){
-
-        return;
-
-    }
-
-
-
-    localStorage.setItem(
-
-        "clemmapsLastRoute",
-
-        JSON.stringify(
-
-            route
-
-        )
-
-    );
-
-
-}
-
-
-
-
-
-/********************************/
-/******** CHARGEMENT TRAJET *****/
-/********************************/
-
-
-function loadLastRoute(){
-
-
-    let route =
-
-    localStorage.getItem(
-
-        "clemmapsLastRoute"
-
-    );
-
-
-
-    if(
-
-        !route
-
-    ){
-
-        return null;
-
-    }
-
-
-
-    return JSON.parse(
-
-        route
-
-    );
-
-
-}
-
-
-
-
-
-/********************************/
-/******** SYNCHRONISATION *******/
-/********************************/
-
-
-async function startOSRMNavigation(){
-
-
-    let route =
-
-    await recalculateRoute();
-
-
-
-    if(
-
-        !route
-
-    ){
-
-        showNotification(
-
-            "Impossible de calculer le trajet."
-
-        );
-
-
-        return;
-
-    }
-
-
-
-    let bestRoute =
-
-    getBestRoute(
-
-        route
-
-    );
-
-
-
-    saveLastRoute(
-
-        bestRoute
-
-    );
-
-
-
-    followOSRMRoute(
-
-        bestRoute
-
-    );
-
-
-
-    showNotification(
-
-        "Itinéraire calculé."
-
-    );
-
-
-}
-
-
-
-
-
-/********************************/
-/******** INITIALISATION ********/
-/********************************/
-
-
-function initializeOSRMAPI(){
-
-
-    initializeOSRM();
-
-
-
-    console.log(
-
-        "API OSRM chargée."
-
-    );
-
-
-}
-
-
-
-
-
-/********************************/
-/******** AUTO CHARGEMENT *******/
-/********************************/
-
-
-window.addEventListener(
-
-    "load",
-
-    function(){
-
-
-        initializeOSRMAPI();
-
-
-    }
-
-);
-
-
-
-
-
-/********************************/
-/******** FIN OSRM.JS ***********/
-/********************************/
-
-/*
-
-API OSRM :
-
-Fonctionnalités :
-
-- Calcul d'itinéraire réel ;
-- Distance ;
-- Temps de trajet ;
-- Instructions virage par virage ;
-- Traduction française ;
-- Suivi GPS ;
-- Recalcul automatique ;
-- Sauvegarde dernier trajet ;
-- Connexion navigation.js.
-
-
-Architecture :
-
-navigation.js
-      ↓
-osrm.js
-      ↓
-OSRM Routing Engine
-      ↓
-Calcul route
-      ↓
-GPS
-      ↓
-Guidage utilisateur
-
-*/
